@@ -1,45 +1,122 @@
 import { Tabs } from 'expo-router';
-import React from 'react';
-import { Platform } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import {Platform, TouchableOpacity} from 'react-native';
+import { useAuth } from '../context/AuthContext';
+import { useEffect } from 'react';
+import { router } from 'expo-router';
+import { Colors } from '@/components/colors';
 
-import { HapticTab } from '@/components/HapticTab';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import TabBarBackground from '@/components/ui/TabBarBackground';
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+export default function Layout() {
+    const { user } = useAuth();
 
-  return (
+    useEffect(() => {
+        if (!user) {
+            router.replace('/login');
+        }
+    }, [user]);
+
+    if (!user) {
+        return null;
+    }
+
+    const handleProfilePress = () => {
+        // You can navigate to a profile screen or show a menu
+        // Or navigate to a profile screen:
+       router.push('/profile');
+    };
+
+    const ProfileButton = () => (
+        <TouchableOpacity
+            onPress={handleProfilePress}
+            style={{
+                marginRight: 16,
+                padding: 8,
+                borderRadius: 20,
+                backgroundColor: '#f0f0f0',
+            }}
+        >
+            <MaterialCommunityIcons
+                name="account-circle"
+                size={24}
+                color="#6200ee"
+            />
+        </TouchableOpacity>
+    );
+
+
+    return (
     <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-        tabBarBackground: TabBarBackground,
-        tabBarStyle: Platform.select({
-          ios: {
-            // Use a transparent background on iOS to show the blur effect
-            position: 'absolute',
-          },
-          default: {},
-        }),
-      }}>
+        screenOptions={{
+            // Material Design styling
+            tabBarStyle: {
+                backgroundColor: Colors.neutral.white,
+                height: Platform.OS === 'ios' ? 88 : 60,
+                paddingBottom: Platform.OS === 'ios' ? 30 : 10,
+                paddingTop: 5,
+                elevation: 8, // Android shadow
+                shadowColor: Colors.neutral.darkGray, // iOS shadow
+                shadowOffset: {
+                    width: 0,
+                    height: 4,
+                },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+            },
+            tabBarActiveTintColor: Colors.primary, // Material Design primary color
+            tabBarInactiveTintColor: Colors.neutral.lightGray,
+            tabBarLabelStyle: {
+                fontSize: 12,
+                fontWeight: '500',
+            },
+            headerStyle: {
+                backgroundColor: Colors.neutral.white,
+                elevation: 1,
+                shadowOpacity: 0.1,
+            },
+            headerTitleStyle: {
+                color: Colors.neutral.darkGray,
+                fontSize: 20,
+                fontWeight: '500',
+            },
+            headerRight: () => <ProfileButton/>,
+
+        }}
+    >
+      {/* Example tab configuration - adjust according to your needs */}
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          tabBarLabel: 'Home',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="home" size={size} color={color} />
+          ),
         }}
       />
+        <Tabs.Screen
+            name="upload"
+            options={{
+                title: 'Upload',
+                tabBarLabel: 'Upload',
+                tabBarIcon: ({ color, size }) => (
+                    <MaterialCommunityIcons name="upload" size={size} color={color}/>
+                ),
+            }}
+        />
+      {/* Add other tab screens as needed */}
       <Tabs.Screen
-        name="explore"
+        name="about"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'About',
+          tabBarLabel: 'About',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="account" size={size} color={color} />
+          ),
         }}
       />
+
+      {/* Add more tabs as needed */}
     </Tabs>
   );
 }

@@ -1,29 +1,44 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { useEffect } from 'react';
+import { router, useSegments } from 'expo-router';
 
-import { useColorScheme } from '@/hooks/useColorScheme';
+function RootLayoutNav() {
+  const { user, loading } = useAuth();
+  const segments = useSegments();
 
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
+  useEffect(() => {
+    if (loading) return; // Don't navigate while loading
 
-  if (!loaded) {
-    // Async font loading only occurs in development.
-    return null;
+    const inAuthGroup = segments[0] === '(tabs)' || segments[0] === 'profile';
+
+    if (user && !inAuthGroup) {
+      // User is signed in but not in auth group, redirect to tabs
+      router.replace('/(tabs)');
+    } else if (!user && inAuthGroup) {
+      // User is not signed in but in auth group, redirect to login
+      router.replace('/login');
+    }
+  }, [user, loading, segments]);
+
+  // Show loading screen while auth state is being determined
+  if (loading) {
+    return null; // You can return a loading component here if needed
   }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <Stack>
+      <Stack.Screen name="login" options={{ headerShown: false }} />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="profile" options={{ headerShown: false }} />
+    </Stack>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <AuthProvider>
+      <RootLayoutNav />
+    </AuthProvider>
   );
 }

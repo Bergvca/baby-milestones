@@ -1,75 +1,176 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, {useCallback, useEffect, useState} from 'react';
+import {ActivityIndicator, FlatList, StyleSheet, Text, View} from 'react-native';
+import {getAuth, onAuthStateChanged} from 'firebase/auth';
+import {API_BASE_URL, POSTS_PATH} from "@/app/constants/api";
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+type Post = Record<string, unknown>;
 
-export default function HomeScreen() {
+const buildApiUrl = (path: string) => `${API_BASE_URL}${path}`;
+
+function isPostArray(data: unknown): data is Post[] {
+  return Array.isArray(data);
+}
+
+async function fetchJsonWithAuth<T>(url: string, token: string, signal?: AbortSignal): Promise<T> {
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/json',
+    },
+    signal,
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    throw new Error(`Request failed (${response.status}): ${text || response.statusText}`);
+  }
+
+  return (await response.json()) as T;
+}
+
+async function fetchPosts(token: string, signal?: AbortSignal): Promise<Post[]> {
+  const data = await fetchJsonWithAuth<unknown>(buildApiUrl(POSTS_PATH), token, signal);
+  return isPostArray(data) ? data : [];
+}
+
+function IndexScreen() {
+  const [token, setToken] = useState<string | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [postsLoading, setPostsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Watch auth state and get JWT
+  useEffect(() => {
+    const auth = getAuth();
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      try {
+        if (user) {
+          const idToken = await user.getIdToken();
+          setToken(idToken);
+        } else {
+          setToken(null);
+        }
+      } catch {
+        setToken(null);
+      } finally {
+        setAuthLoading(false);
+      }
+    });
+
+    return unsubscribe;
+  }, []);
+
+  // Fetch posts when we have a token
+  useEffect(() => {
+    if (!token) return;
+
+    const controller = new AbortController();
+
+    setPostsLoading(true);
+    setError(null);
+
+    fetchPosts(token, controller.signal)
+        .then(setPosts)
+        .catch((e: unknown) => {
+          setError(e instanceof Error ? e.message : 'Failed to fetch posts.');
+          setPosts([]);
+        })
+        .finally(() => setPostsLoading(false));
+
+    return () => controller.abort();
+  }, [token]);
+
+  const keyExtractor = useCallback((item: Post, index: number) => {
+    const id = (item as any)?.id;
+    return typeof id === 'string' || typeof id === 'number'
+        ? String(id)
+        : String(index);
+  }, []);
+
+  if (authLoading) {
+    return (
+        <View style={styles.center}>
+          <ActivityIndicator color="#fff" />
+          <Text style={styles.text}>Checking session…</Text>
+        </View>
+    );
+  }
+
+  if (!token) {
+    return (
+        <View style={styles.center}>
+          <Text style={styles.text}>Please log in to see posts.</Text>
+        </View>
+    );
+  }
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      <View style={styles.container}>
+        {postsLoading ? (
+            <View style={styles.center}>
+              <ActivityIndicator color="#fff" />
+              <Text style={styles.text}>Loading posts…</Text>
+            </View>
+        ) : error ? (
+            <Text style={styles.error}>Error: {error}</Text>
+        ) : posts.length === 0 ? (
+            <Text style={styles.text}>no posts yet</Text>
+        ) : (
+            <FlatList
+                data={posts}
+                keyExtractor={keyExtractor}
+                contentContainerStyle={styles.listContent}
+                renderItem={({ item }) => (
+                    <View style={styles.card}>
+                      <Text style={styles.json}>
+                        {JSON.stringify(item, null, 2)}
+                      </Text>
+                    </View>
+                )}
+            />
+        )}
+      </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
+  container: {
+    flex: 1,
+    backgroundColor: '#25292e',
+    padding: 16,
+  },
+  center: {
+    flex: 1,
+    backgroundColor: '#25292e',
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
+    padding: 16,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  text: {
+    color: '#fff',
+    fontSize: 16,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  error: {
+    color: '#ff6b6b',
+    fontSize: 14,
+  },
+  listContent: {
+    paddingBottom: 24,
+  },
+  card: {
+    backgroundColor: '#2f3640',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  json: {
+    color: '#e6e6e6',
+    fontFamily: 'monospace',
+    fontSize: 12,
   },
 });
+
+export default IndexScreen;
