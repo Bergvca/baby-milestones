@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import {POSTS_PATH} from "@/app/constants/api";
 
 function guessContentType(fileName: string): string {
   const ext = fileName.split('.').pop()?.toLowerCase();
@@ -21,6 +22,7 @@ export async function uploadPostBinary(params: {
   apiBaseUrl: string;
   token: string;
   imageUri: string; // from ImagePicker result.assets[0].uri
+  date: Date;
   text?: string;
 }) {
   const { apiBaseUrl, token, imageUri, text } = params;
@@ -59,7 +61,9 @@ export async function uploadPostBinary(params: {
 
   if (text) form.append('text', text);
 
-  const res = await fetch(`${apiBaseUrl}/post`, {
+  form.append('date', params.date.toISOString());
+
+  const res = await fetch(`${apiBaseUrl}${POSTS_PATH}`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,

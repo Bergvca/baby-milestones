@@ -48,3 +48,23 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+
+-- deployment to github pages:
+
+https://docs.expo.dev/guides/publishing-websites/
+
+- check api.ts
+
+- npx expo export --platform web
+
+- for gh pages, make sure this is in app.json:
+
+  "experiments": {
+  "typedRoutes": true,
+  "baseUrl": "/baby-milestones"
+  },
+
+- npm run deploy
+
+

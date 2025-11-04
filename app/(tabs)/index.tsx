@@ -2,12 +2,23 @@ import React, {useCallback, useEffect, useState} from 'react';
 import {ActivityIndicator, FlatList, StyleSheet, Text, View} from 'react-native';
 import {getAuth, onAuthStateChanged} from 'firebase/auth';
 import {API_BASE_URL, POSTS_PATH} from "@/app/constants/api";
+import Post from '@/components/Post'; // Adjust path as needed
+import {Colors} from "@/components/colors";
+type MediaFile = {
+  file_md5: string;
+};
 
-type Post = Record<string, unknown>;
+type PostData = {
+  id: string | number;
+  date: string;
+  description: string;
+  media_files: MediaFile[];
+
+};
 
 const buildApiUrl = (path: string) => `${API_BASE_URL}${path}`;
 
-function isPostArray(data: unknown): data is Post[] {
+function isPostArray(data: unknown): data is PostData[] {
   return Array.isArray(data);
 }
 
@@ -29,7 +40,7 @@ async function fetchJsonWithAuth<T>(url: string, token: string, signal?: AbortSi
   return (await response.json()) as T;
 }
 
-async function fetchPosts(token: string, signal?: AbortSignal): Promise<Post[]> {
+async function fetchPosts(token: string, signal?: AbortSignal): Promise<PostData[]> {
   const data = await fetchJsonWithAuth<unknown>(buildApiUrl(POSTS_PATH), token, signal);
   return isPostArray(data) ? data : [];
 }
@@ -38,7 +49,7 @@ function IndexScreen() {
   const [token, setToken] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<PostData[]>([]);
   const [postsLoading, setPostsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -83,8 +94,8 @@ function IndexScreen() {
     return () => controller.abort();
   }, [token]);
 
-  const keyExtractor = useCallback((item: Post, index: number) => {
-    const id = (item as any)?.id;
+  const keyExtractor = useCallback((item: PostData, index: number) => {
+    const id = item?.id;
     return typeof id === 'string' || typeof id === 'number'
         ? String(id)
         : String(index);
@@ -119,16 +130,20 @@ function IndexScreen() {
         ) : posts.length === 0 ? (
             <Text style={styles.text}>no posts yet</Text>
         ) : (
+            
             <FlatList
                 data={posts}
                 keyExtractor={keyExtractor}
                 contentContainerStyle={styles.listContent}
                 renderItem={({ item }) => (
-                    <View style={styles.card}>
-                      <Text style={styles.json}>
-                        {JSON.stringify(item, null, 2)}
-                      </Text>
-                    </View>
+                    <>
+                      <Post
+                          date={item.date}
+                          text={item.description}
+                          mediaFiles={item.media_files}
+                          token={token}
+                      />
+                    </>
                 )}
             />
         )}
@@ -139,18 +154,18 @@ function IndexScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#25292e',
+    backgroundColor: Colors.neutral?.lightGray || '#25292e',
     padding: 16,
   },
   center: {
     flex: 1,
-    backgroundColor: '#25292e',
+    backgroundColor: Colors.neutral?.darkGray || '#25292e',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
   },
   text: {
-    color: '#fff',
+    color: Colors.neutral?.lightGray || '#fff',
     fontSize: 16,
   },
   error: {
@@ -159,17 +174,6 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 24,
-  },
-  card: {
-    backgroundColor: '#2f3640',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-  },
-  json: {
-    color: '#e6e6e6',
-    fontFamily: 'monospace',
-    fontSize: 12,
   },
 });
 

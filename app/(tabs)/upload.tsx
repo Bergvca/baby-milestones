@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Alert, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
+import {View, StyleSheet, Alert, ActivityIndicator, Text, TouchableOpacity, ScrollView} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -11,6 +11,8 @@ import * as FileSystem from 'expo-file-system';
 import { Platform } from 'react-native';
 import {uploadPostBinary} from "@/components/UploadPostBinary";
 import {Colors} from "@/components/colors";
+import {DatePicker} from "@/components/DatePicker";
+
 
 export default function Upload() {
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -20,6 +22,25 @@ export default function Upload() {
     const [uploadSuccess, setUploadSuccess] = useState(false);
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [showDatePicker, setShowDatePicker] = useState(false);
+
+    const onDateChange = (event: any, date?: Date) => {
+        setShowDatePicker(Platform.OS === 'ios');
+        if (date) {
+            setSelectedDate(date);
+        }
+    };
+
+    const handleWebDateChange = (date: Date) => {
+        setSelectedDate(date);
+    };
+
+    const formatDate = (date: Date) => {
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    };
 
     useEffect(() => {
         const auth = getAuth();
@@ -57,21 +78,6 @@ export default function Upload() {
         }
     };
 
-    const onDateChange = (event: any, date?: Date) => {
-        setShowDatePicker(Platform.OS === 'ios');
-        if (date) {
-            setSelectedDate(date);
-        }
-    };
-
-    const formatDate = (date: Date) => {
-        return date.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
-    };
-
     const onCreatePost = async () => {
         if (!token) {
             Alert.alert('Not signed in', 'Please sign in before creating a post.');
@@ -93,8 +99,7 @@ export default function Upload() {
                 token,
                 imageUri: selectedImage,
                 text: postText,
-                // You can add the selected date to your upload function if needed
-                // date: selectedDate,
+                date: selectedDate,
             });
 
             setUploadSuccess(true); // show success message instead of image
@@ -109,26 +114,24 @@ export default function Upload() {
     };
 
     return (
-        <View style={styles.container}>
-            {uploadSuccess ? (
+        <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+        {uploadSuccess ? (
                 <Text style={styles.successText}>Milestone Created!</Text>
             ) : (
-                <ImageViewer selectedImage={selectedImage} />
+                <ImageViewer selectedImage={selectedImage}/>
             )}
 
             {/* Date Picker Section */}
-            <View style={styles.datePickerContainer}>
-                <Text style={styles.dateLabel}>Date:</Text>
-                <TouchableOpacity
-                    style={styles.dateButton}
-                    onPress={() => setShowDatePicker(true)}
-                    disabled={uploading}
-                >
-                    <Text style={styles.dateButtonText}>{formatDate(selectedDate)}</Text>
-                </TouchableOpacity>
-            </View>
+            <DatePicker
+                onPress={() => setShowDatePicker(true)}
+                disabled={uploading}
+                s={formatDate(selectedDate)}
+                onDateChange={handleWebDateChange}
+                selectedDate={selectedDate}
+            />
 
-            {showDatePicker && (
+            {/* Only show DateTimePicker on mobile platforms */}
+            {showDatePicker && Platform.OS !== 'web' && (
                 <DateTimePicker
                     value={selectedDate}
                     mode="date"
@@ -137,19 +140,19 @@ export default function Upload() {
                 />
             )}
 
-            <PostTextField value={postText} onChangeText={setPostText} />
+            <PostTextField value={postText} onChangeText={setPostText}/>
 
             <View style={styles.actions}>
-                <Button title="Choose image" onPress={pickImageAsync} disabled={uploading} />
-                <Button title="Create post" variant="secondary" onPress={onCreatePost} disabled={uploading} />
+                <Button title="Choose image" onPress={pickImageAsync} disabled={uploading}/>
+                <Button title="Create post" variant="secondary" onPress={onCreatePost} disabled={uploading}/>
             </View>
 
             {uploading && (
                 <View style={styles.overlay}>
-                    <ActivityIndicator size="large" color="#fff" />
+                    <ActivityIndicator size="large" color="#fff"/>
                 </View>
             )}
-        </View>
+        </ScrollView>
     );
 }
 
@@ -157,11 +160,17 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: Colors.neutral.offWhite,
-        alignItems: 'center',
-        justifyContent: 'center',
+
         paddingHorizontal: 16,
         gap: 16,
     },
+    contentContainer: {
+        padding: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100%',
+    },
+
     actions: {
         marginTop: 12,
         flexDirection: 'row',

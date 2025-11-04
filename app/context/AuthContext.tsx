@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { auth } from '../../firebaseConfig';
 import {
@@ -32,13 +33,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
 
-    // Configure Google Auth Request with automatic redirect URI
+    // Configure Google Auth Request with proper redirect URI for Expo Go
     const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
         clientId: '709551532680-8tclo8jnqk8l9197d209duqmi6l2j189.apps.googleusercontent.com',
-        // redirectUri: makeRedirectUri({
-        //     scheme: 'babycards',
-        //     path: 'oauth'
-        // }),
+        redirectUri: makeRedirectUri({
+            scheme: undefined, // Use default for Expo Go
+        }),
     });
 
     useEffect(() => {
@@ -66,6 +66,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         console.error('Firebase sign-in error:', error);
                     });
             }
+        } else if (response?.type === 'error') {
+            console.error('Google Auth error:', response.error);
         }
     }, [response]);
 
