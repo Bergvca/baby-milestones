@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet, Platform } from 'react-native';
 import { API_BASE_URL } from '@/app/constants/api'; // Adjust the import path as needed
 import {Colors} from "@/components/colors";
+import PostMenu from './PostMenu';
+
 
 
 interface MediaFile {
@@ -9,18 +11,22 @@ interface MediaFile {
 }
 
 interface PostProps {
+    id: number;
     date: string;
     text: string;
     mediaFiles: MediaFile[];
     token: string;
+    onEdit: () => void;
+    onDelete: () => void;
 }
+
 
 interface ImageWithAuth {
     file_md5: string;
     uri: string;
 }
 
-const Post: React.FC<PostProps> = ({ date, text, mediaFiles, token }) => {
+const Post: React.FC<PostProps> = ({id, date, text, mediaFiles, token, onEdit, onDelete }: PostProps) => {
     const [authenticatedImages, setAuthenticatedImages] = useState<ImageWithAuth[]>([]);
     const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
 
@@ -98,7 +104,16 @@ const Post: React.FC<PostProps> = ({ date, text, mediaFiles, token }) => {
 
     return (
         <View style={styles.container}>
-            <Text style={styles.date}>{date}</Text>
+            <View style={styles.postHeader}>
+                <Text style={styles.date}>{date}</Text>
+                <PostMenu
+                    postId={id}
+                    token={token}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                />
+            </View>
+
 
             {authenticatedImages.map((imageData) => (
                 <Image
@@ -125,10 +140,11 @@ const Post: React.FC<PostProps> = ({ date, text, mediaFiles, token }) => {
     );
 };
 
+
 const styles = StyleSheet.create({
     container: {
-        backgroundColor: Colors.neutral.offWhite,
-        borderRadius: 8,
+        backgroundColor: Colors.neutral?.offWhite || '#25292e',
+        borderRadius: 12,
         padding: 16,
         marginBottom: 16,
         shadowColor: Colors.neutral.darkGray || '#000',
@@ -140,10 +156,11 @@ const styles = StyleSheet.create({
         shadowRadius: 3.84,
         elevation: 5,
     },
-    date: {
-        fontSize: 14,
-        color: Colors.secondary,
-        marginBottom: 8,
+    postHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
     },
     image: {
         width: '100%',
@@ -151,17 +168,23 @@ const styles = StyleSheet.create({
         borderRadius: 4,
         marginBottom: 12,
     },
+    date: {
+        color: Colors.secondary,
+        fontSize: 14,
+        marginBottom: 8,
+    },
     text: {
-        fontSize: 16,
         color: Colors.primary,
+        fontSize: 16,
         lineHeight: 22,
     },
     errorText: {
         color: '#ff6b6b',
-        fontSize: 12,
+        fontSize: 14,
         fontStyle: 'italic',
-        marginBottom: 8,
-    },
+        marginBottom: 12,
+    }
 });
+
 
 export default Post;

@@ -12,6 +12,7 @@ import { Platform } from 'react-native';
 import {uploadPostBinary} from "@/components/UploadPostBinary";
 import {Colors} from "@/components/colors";
 import {DatePicker} from "@/components/DatePicker";
+import {router} from "expo-router";
 
 
 export default function Upload() {
@@ -78,6 +79,18 @@ export default function Upload() {
         }
     };
 
+    const handleUploadSuccess = async () => {
+        setUploadSuccess(true);
+        setUploading(false);
+
+        // Show success message for 1 second, then navigate
+        setTimeout(() => {
+            setUploadSuccess(false);
+            router.push('/(tabs)'); // Navigate to home/index
+        }, 1000);
+    };
+
+
     const onCreatePost = async () => {
         if (!token) {
             Alert.alert('Not signed in', 'Please sign in before creating a post.');
@@ -103,7 +116,8 @@ export default function Upload() {
             });
 
             setUploadSuccess(true); // show success message instead of image
-            Alert.alert('Success', 'Your post has been created.');
+            handleUploadSuccess();
+
         } catch (e) {
             const message = e instanceof Error ? e.message : 'Unknown error';
             console.error('Upload error:', e);

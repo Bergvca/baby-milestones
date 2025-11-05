@@ -4,16 +4,17 @@ import {getAuth, onAuthStateChanged} from 'firebase/auth';
 import {API_BASE_URL, POSTS_PATH} from "@/app/constants/api";
 import Post from '@/components/Post'; // Adjust path as needed
 import {Colors} from "@/components/colors";
+import {useFocusEffect} from "expo-router";
+
 type MediaFile = {
   file_md5: string;
 };
 
 type PostData = {
-  id: string | number;
+  id: number;
   date: string;
   description: string;
   media_files: MediaFile[];
-
 };
 
 const buildApiUrl = (path: string) => `${API_BASE_URL}${path}`;
@@ -48,10 +49,30 @@ async function fetchPosts(token: string, signal?: AbortSignal): Promise<PostData
 function IndexScreen() {
   const [token, setToken] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-
   const [posts, setPosts] = useState<PostData[]>([]);
   const [postsLoading, setPostsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  // Function to refresh posts on focus
+  const refreshPosts = useCallback(async () => {
+    if (!token) return;
+
+    const controller = new AbortController();
+    setPostsLoading(true);
+    setError(null);
+
+    try {
+      const newPosts = await fetchPosts(token, controller.signal);
+      setPosts(newPosts);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to fetch posts.');
+      setPosts([]);
+    } finally {
+      setPostsLoading(false);
+    }
+  }, [token]);
+
 
   // Watch auth state and get JWT
   useEffect(() => {
@@ -75,24 +96,21 @@ function IndexScreen() {
   }, []);
 
   // Fetch posts when we have a token
+
+  // Fetch posts when we have a token or when refreshKey changes
   useEffect(() => {
     if (!token) return;
+    refreshPosts();
+  }, [token, refreshKey, refreshPosts]);
 
-    const controller = new AbortController();
-
-    setPostsLoading(true);
-    setError(null);
-
-    fetchPosts(token, controller.signal)
-        .then(setPosts)
-        .catch((e: unknown) => {
-          setError(e instanceof Error ? e.message : 'Failed to fetch posts.');
-          setPosts([]);
-        })
-        .finally(() => setPostsLoading(false));
-
-    return () => controller.abort();
-  }, [token]);
+  // Refresh posts when screen comes into focus (when navigating from upload)
+  useFocusEffect(
+      useCallback(() => {
+        if (token) {
+          setRefreshKey(prev => prev + 1);
+        }
+      }, [token])
+  );
 
   const keyExtractor = useCallback((item: PostData, index: number) => {
     const id = item?.id;
@@ -100,6 +118,7 @@ function IndexScreen() {
         ? String(id)
         : String(index);
   }, []);
+
 
   if (authLoading) {
     return (
@@ -122,7 +141,7 @@ function IndexScreen() {
       <View style={styles.container}>
         {postsLoading ? (
             <View style={styles.center}>
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={Colors.primary || '#fff'} size="large" animating={true} style={{marginBottom: 16}} />
               <Text style={styles.text}>Loading posts…</Text>
             </View>
         ) : error ? (
@@ -138,11 +157,21 @@ function IndexScreen() {
                 renderItem={({ item }) => (
                     <>
                       <Post
+                          id={item.id}
                           date={item.date}
                           text={item.description}
                           mediaFiles={item.media_files}
                           token={token}
+                          onDelete={() => {
+                            // Refresh posts after deletion
+                            setRefreshKey(prev => prev + 1);
+                          }}
+                          onEdit={() => {
+                            // Refresh posts after edit
+                            setRefreshKey(prev => prev + 1);
+                          }}
                       />
+
                     </>
                 )}
             />

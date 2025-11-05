@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useEffect } from 'react';
 import { router } from 'expo-router';
 import { Colors } from '@/components/colors';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 
 export default function Layout() {
@@ -20,39 +21,18 @@ export default function Layout() {
         return null;
     }
 
-    const handleProfilePress = () => {
-        // You can navigate to a profile screen or show a menu
-        // Or navigate to a profile screen:
-       router.push('/profile');
-    };
-
-    const ProfileButton = () => (
-        <TouchableOpacity
-            onPress={handleProfilePress}
-            style={{
-                marginRight: 16,
-                padding: 8,
-                borderRadius: 20,
-                backgroundColor: '#f0f0f0',
-            }}
-        >
-            <MaterialCommunityIcons
-                name="account-circle"
-                size={24}
-                color="#6200ee"
-            />
-        </TouchableOpacity>
-    );
-
-
     return (
-    <Tabs
+
+        <SafeAreaView style={{ flex: 1 }}>
+        <Tabs
+
+
         screenOptions={{
             // Material Design styling
             tabBarStyle: {
                 backgroundColor: Colors.neutral.white,
                 height: Platform.OS === 'ios' ? 88 : 60,
-                paddingBottom: Platform.OS === 'ios' ? 30 : 10,
+                paddingBottom: Platform.OS === 'ios' ? 30 : 0,
                 paddingTop: 5,
                 elevation: 8, // Android shadow
                 shadowColor: Colors.neutral.darkGray, // iOS shadow
@@ -69,17 +49,7 @@ export default function Layout() {
                 fontSize: 12,
                 fontWeight: '500',
             },
-            headerStyle: {
-                backgroundColor: Colors.neutral.white,
-                elevation: 1,
-                shadowOpacity: 0.1,
-            },
-            headerTitleStyle: {
-                color: Colors.neutral.darkGray,
-                fontSize: 20,
-                fontWeight: '500',
-            },
-            headerRight: () => <ProfileButton/>,
+            headerShown: false,
 
         }}
     >
@@ -116,7 +86,19 @@ export default function Layout() {
         }}
       />
 
+        <Tabs.Screen
+            name="profile"
+            options={{
+                title: 'Profile',
+                tabBarLabel: 'Profile',
+                tabBarIcon: ({ color, size }) => (
+                    <MaterialCommunityIcons name="account-circle" size={size} color={color} />
+                ),
+            }}
+        />
       {/* Add more tabs as needed */}
     </Tabs>
-  );
+</SafeAreaView>
+
+);
 }
