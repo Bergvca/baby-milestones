@@ -76,12 +76,12 @@ export default function Layout() {
         />
       {/* Add other tab screens as needed */}
       <Tabs.Screen
-        name="about"
+        name="qr"
         options={{
-          title: 'About',
-          tabBarLabel: 'About',
+          title: 'QR',
+          tabBarLabel: 'QR',
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="account" size={size} color={color} />
+            <MaterialCommunityIcons name="qrcode" size={size} color={color} />
           ),
         }}
       />

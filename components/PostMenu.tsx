@@ -12,6 +12,7 @@ import {
 import { Colors } from './colors';
 import { API_BASE_URL, POSTS_PATH } from '@/app/constants/api';
 import CustomAlert from './CustomAlert';
+import {router} from "expo-router";
 
 interface PostMenuProps {
     postId: string | number;
@@ -30,14 +31,17 @@ export default function PostMenu({ postId, token, onEdit, onDelete }: PostMenuPr
 
     const handleEdit = () => {
         setIsVisible(false);
-        if (Platform.OS === 'web') {
-            // Use browser alert for now, or implement custom solution
-            alert('Edit functionality to be implemented');
-        } else {
-            Alert.alert('Edit Post', 'Edit functionality to be implemented');
-        }
+        // Navigate to upload page with post data
+        router.replace({
+            pathname: '/(tabs)/upload',
+            params: {
+                editMode: 'true',
+                postId: postId,
+            }
+        });
         onEdit();
     };
+
 
     const deletePost = async (postId: string | number): Promise<void> => {
         const response = await fetch(`${API_BASE_URL}${POSTS_PATH}/${postId}`, {

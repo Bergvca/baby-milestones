@@ -1,0 +1,15 @@
+/* Web-specific global styles */
+@media (min-width: 801px) {
+    body {
+        display: flex;
+        justify-content: center;
+        background-color: #f0f0f0; /* Optional: background color for sides */
+    }
+
+    #root {
+        max-width: 800px;
+        width: 100%;
+        margin: 0 auto;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Optional: subtle shadow */
+    }
+}

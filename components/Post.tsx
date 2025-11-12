@@ -116,16 +116,21 @@ const Post: React.FC<PostProps> = ({id, date, text, mediaFiles, token, onEdit, o
 
 
             {authenticatedImages.map((imageData) => (
-                <Image
-                    key={imageData.file_md5}
-                    source={getImageSource(imageData)}
-                    style={styles.image}
-                    resizeMode="contain"
-                    onError={(error) => {
-                        console.error('Image load error:', error);
-                        setImageErrors(prev => new Set(prev).add(imageData.file_md5));
-                    }}
-                />
+                <View key={imageData.file_md5} style={styles.imageContainer}>
+
+                    <Image
+                            // key={imageData.file_md5}
+                            source={getImageSource(imageData)}
+                            style={styles.image}
+                            // borderRadius={20}
+                            resizeMode="cover"
+                            onError={(error) => {
+                                console.error('Image load error:', error);
+                                setImageErrors(prev => new Set(prev).add(imageData.file_md5));
+                            }}
+                        />
+                </View>
+
             ))}
 
             {/* Show error message for failed images */}
@@ -162,11 +167,17 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 12,
     },
+    imageContainer: {
+        width: '100%',
+        height: 300,
+        marginBottom: 12,
+        borderRadius: 12,
+        overflow: 'hidden',
+        backgroundColor: 'transparent',
+    },
     image: {
         width: '100%',
-        height: 200,
-        borderRadius: 4,
-        marginBottom: 12,
+        height: '100%',
     },
     date: {
         color: Colors.secondary,

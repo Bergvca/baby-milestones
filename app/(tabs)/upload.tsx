@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import {View, StyleSheet, Alert, ActivityIndicator, Text, TouchableOpacity, ScrollView} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
@@ -6,13 +6,13 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import ImageViewer from '@/components/ImageViewer';
 import PostTextField from '@/components/PostTextField';
 import Button from '@/components/Button';
-import { API_BASE_URL } from '@/app/constants/api';
+import {API_BASE_URL, POSTS_PATH} from '@/app/constants/api';
 import * as FileSystem from 'expo-file-system';
 import { Platform } from 'react-native';
-import {uploadPostBinary} from "@/components/UploadPostBinary";
+import {uploadPostBinary, updatePostById} from "@/components/UploadPostBinary";
 import {Colors} from "@/components/colors";
 import {DatePicker} from "@/components/DatePicker";
-import {router} from "expo-router";
+import {router, useFocusEffect, useLocalSearchParams} from "expo-router";
 
 
 export default function Upload() {
@@ -23,6 +23,14 @@ export default function Upload() {
     const [uploadSuccess, setUploadSuccess] = useState(false);
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [showDatePicker, setShowDatePicker] = useState(false);
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [editingPostId, setEditingPostId] = useState<string | null>(null);
+    const [loadingPostData, setLoadingPostData] = useState(false);
+    const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+    // Get params from navigation
+    const params = useLocalSearchParams();
+
 
     const onDateChange = (event: any, date?: Date) => {
         setShowDatePicker(Platform.OS === 'ios');
@@ -43,6 +51,55 @@ export default function Upload() {
         });
     };
 
+    // Load post data for editing
+    const loadPostForEditing = async (postId: string, token: string) => {
+        setLoadingPostData(true);
+        try {
+            // Fetch post details
+            const response = await fetch(`${API_BASE_URL}${POSTS_PATH}/${postId}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Accept: 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to load post data');
+            }
+
+            const postData = await response.json();
+
+            // Set the form data
+            setPostText(postData.description || '');
+            setSelectedDate(new Date(postData.date));
+
+            // Load the first image if available
+            if (postData.media_files && postData.media_files.length > 0) {
+                const imageResponse = await fetch(`${API_BASE_URL}/image/${postData.media_files[0].file_md5}`, {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                });
+
+                if (imageResponse.ok) {
+                    if (Platform.OS === 'web') {
+                        const blob = await imageResponse.blob();
+                        const blobUrl = URL.createObjectURL(blob);
+                        setSelectedImage(blobUrl);
+                    } else {
+                        setSelectedImage(`${API_BASE_URL}/image/${postData.media_files[0].file_md5}`);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error loading post for editing:', error);
+            Alert.alert('Error', 'Failed to load post data for editing');
+        } finally {
+            setLoadingPostData(false);
+        }
+    };
+
+
     useEffect(() => {
         const auth = getAuth();
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -59,6 +116,61 @@ export default function Upload() {
         });
         return unsubscribe;
     }, []);
+
+    const resetFormState = () => {
+        setSelectedImage(null);
+        setPostText('');
+        setSelectedDate(new Date());
+        setIsEditMode(false);
+        setEditingPostId(null);
+        setUploadSuccess(false);
+    };
+
+    // Handle edit mode setup
+// Update the edit mode useEffect to handle new edits
+    useEffect(() => {
+        const editMode = params.editMode;
+        const postId = params.postId;
+
+        if (editMode === 'true' && postId && token) {
+            // Check if we're switching to a different post
+            if (editingPostId && editingPostId !== postId) {
+                // Reset state before loading new post
+                resetFormState();
+            }
+
+            // Only proceed if not already editing this specific post
+            if (editingPostId !== postId) {
+                setIsEditMode(true);
+                setEditingPostId(postId as string);
+
+                // Use params data if available
+                if (params.text) {
+                    setPostText(params.text as string);
+                }
+                if (params.date) {
+                    setSelectedDate(new Date(params.date as string));
+                }
+
+                // Load complete post data including image
+                loadPostForEditing(postId as string, token);
+            }
+        } else if (editMode !== 'true' && isEditMode) {
+            // If we're no longer in edit mode, reset the form
+            resetFormState();
+        }
+    }, [params.editMode, params.postId, params.text, params.date, token, editingPostId]);
+
+    // Also add a useFocusEffect to handle navigation changes
+    useFocusEffect(
+        useCallback(() => {
+            // Reset form when navigating to upload without edit params
+            if (!params.editMode && isEditMode) {
+                resetFormState();
+            }
+        }, [params.editMode, isEditMode])
+    );
+
 
     const pickImageAsync = async () => {
         const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -82,6 +194,7 @@ export default function Upload() {
     const handleUploadSuccess = async () => {
         setUploadSuccess(true);
         setUploading(false);
+        const successMessage = isEditMode ? 'Milestone Updated!' : 'Milestone Created!';
 
         // Show success message for 1 second, then navigate
         setTimeout(() => {
@@ -104,17 +217,19 @@ export default function Upload() {
         try {
             setUploading(true);
 
-            // Derive name and type if needed
-            const fileName = selectedImage.split('/').pop() || 'upload.jpg';
-
-            await uploadPostBinary({
-                apiBaseUrl: API_BASE_URL,
-                token,
-                imageUri: selectedImage,
-                text: postText,
-                date: selectedDate,
-            });
-
+            if (isEditMode && editingPostId) {
+                // Update existing post
+                await updatePostById(editingPostId, token, postText, selectedDate, selectedImage);
+            } else {
+                // Create new post
+                await uploadPostBinary({
+                    apiBaseUrl: API_BASE_URL,
+                    token,
+                    imageUri: selectedImage,
+                    text: postText,
+                    date: selectedDate,
+                });
+            }
             setUploadSuccess(true); // show success message instead of image
             handleUploadSuccess();
 
@@ -126,6 +241,16 @@ export default function Upload() {
             setUploading(false);
         }
     };
+
+    if (loadingPostData) {
+        return (
+            <View style={styles.center}>
+                <ActivityIndicator size="large" color={Colors.primary} />
+                <Text style={styles.loadingText}>Loading post data...</Text>
+            </View>
+        );
+    }
+
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
@@ -184,6 +309,18 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         minHeight: '100%',
     },
+    center: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: Colors.neutral.offWhite,
+    },
+    loadingText: {
+        color: Colors.primary,
+        fontSize: 14,
+        marginTop: 8,
+    },
+
 
     actions: {
         marginTop: 12,

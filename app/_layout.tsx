@@ -2,6 +2,13 @@ import { Stack } from 'expo-router';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { useEffect } from 'react';
 import { router, useSegments } from 'expo-router';
+import {Platform} from "react-native";
+
+// Import CSS for web
+if (Platform.OS === 'web') {
+  require('../app.css');
+}
+
 
 function RootLayoutNav() {
   const { user, loading } = useAuth();

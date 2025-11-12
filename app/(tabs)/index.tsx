@@ -167,8 +167,7 @@ function IndexScreen() {
                             setRefreshKey(prev => prev + 1);
                           }}
                           onEdit={() => {
-                            // Refresh posts after edit
-                            setRefreshKey(prev => prev + 1);
+
                           }}
                       />
 

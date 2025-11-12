@@ -1,21 +1,79 @@
-import React from 'react';
+import React, {useEffect, useState} from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import  alert from '@/components/Alert';
+import {getAuth} from "firebase/auth";
+import {API_BASE_URL, USER_PATH, UPDATE_AVATAR_PATH} from "@/app/constants/api";
+import ProfileAvatar from "@/components/ProfileAvatar";
+
+type UserProfile = {
+    firebase_uid: string;
+    id: number;
+    email: string;
+    full_name?: string;
+};
+
 
 export default function Profile() {
-    const { user, logout } = useAuth();
+    const { logout } = useAuth();
+    const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+
+    // Fetch user profile from API
+    const fetchUserProfile = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            const auth = getAuth();
+            const user = auth.currentUser;
+
+            if (!user) {
+                throw new Error('No authenticated user');
+            }
+
+            const token = await user.getIdToken();
+            const response = await fetch(`${API_BASE_URL}${USER_PATH}/${user.uid}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch user profile: ${response.status}`);
+            }
+
+            const userData = await response.json();
+            setUserProfile(userData);
+        } catch (err) {
+            console.error('Error fetching user profile:', err);
+            setError(err instanceof Error ? err.message : 'Failed to load profile');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+
+
+    useEffect(() => {
+        fetchUserProfile();
+    }, []);
 
 
     const handleEditProfile = () => {
-        alert('Edit Profile', 'Edit profile functionality coming soon!');
+        alert('Edit Profile', 'Edit profile functionality coming soon!', []);
     };
 
     const handleSettings = () => {
-        alert('Settings', 'Settings page coming soon!');
+        alert('Settings', 'Settings page coming soon!', []);
     };
 
     const handleLogout = () => {
@@ -25,6 +83,7 @@ export default function Profile() {
             [
                 {
                     text: 'Cancel',
+                    onPress: () => {},
                     style: 'cancel',
                 },
                 {
@@ -35,7 +94,7 @@ export default function Profile() {
                             await logout();
                             router.replace('/login');
                         } catch (error) {
-                            alert('Error', 'Failed to logout. Please try again.');
+                            alert('Error', 'Failed to logout. Please try again.', []);
                         }
                     },
                 },
@@ -61,11 +120,21 @@ export default function Profile() {
 
                 {/* Profile Info */}
                 <View style={styles.profileSection}>
-                    <View style={styles.avatarContainer}>
-                        <MaterialCommunityIcons name="account-circle" size={120} color="#6200ee" />
+                    <View style={styles.avatarWrapper}>
+                        <ProfileAvatar
+                            size={120}
+                            editable={true}
+
+                        />
                     </View>
-                    <Text style={styles.userName}>{user?.displayName || 'John Doe'}</Text>
-                    <Text style={styles.userEmail}>{user?.email || 'john.doe@example.com'}</Text>
+                    <Text style={styles.userName}>
+                        {userProfile?.full_name ||
+                            `${userProfile?.full_name}`.trim() ||
+                            'Unknown User'}
+                    </Text>
+                    <Text style={styles.userEmail}>
+                        {userProfile?.email || 'No email available'}
+                    </Text>
                 </View>
 
                 {/* Stats Section */}
@@ -128,6 +197,7 @@ export default function Profile() {
         </SafeAreaView>
     );
 }
+
 
 const styles = StyleSheet.create({
     container: {
@@ -254,4 +324,7 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         marginLeft: 8,
     },
+    avatarWrapper:  {
+        marginBottom: 16,
+    }
 });
