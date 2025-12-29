@@ -10,7 +10,7 @@ import {
     Platform,
 } from 'react-native';
 import { Colors } from './colors';
-import { API_BASE_URL, POSTS_PATH } from '@/app/constants/api';
+import { POSTS_PATH } from '@/app/constants/api';
 import CustomAlert from './CustomAlert';
 import {router} from "expo-router";
 
@@ -44,7 +44,7 @@ export default function PostMenu({ postId, token, onEdit, onDelete }: PostMenuPr
 
 
     const deletePost = async (postId: string | number): Promise<void> => {
-        const response = await fetch(`${API_BASE_URL}${POSTS_PATH}/${postId}`, {
+        const response = await fetch(`${POSTS_PATH}/${postId}`, {
             method: 'DELETE',
             headers: {
                 Authorization: `Bearer ${token}`,

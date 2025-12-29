@@ -5,9 +5,15 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Colors } from './colors';
 import * as ImagePicker from 'expo-image-picker';
 import alert from '@/components/Alert';
-import { API_BASE_URL, UPDATE_AVATAR_PATH } from '@/app/constants/api';
+import {CHILD_AVATAR_PATH, USER_AVATAR_PATH} from '@/app/constants/api';
 import { useAuth } from '@/app/context/AuthContext';
 import {add_image_to_form} from '@/components/UploadPostBinary'
+
+
+export type ProfileAvatarRef = {
+    uploadAvatarForChild: (childId: number) => Promise<boolean>;
+    getAvatarUri: () => string | null;
+};
 
 
 type ProfileAvatarProps = {
@@ -15,19 +21,71 @@ type ProfileAvatarProps = {
     iconColor?: string;
     onImageChange?: (uri: string) => void;
     editable?: boolean;
+    isChild?: boolean;
+    childId: number | null;
 };
 
-export default function ProfileAvatar({
-                                          size = 120,
-                                          iconColor = Colors.accent.yellow,
-                                          onImageChange,
-                                          editable = false
-                                      }: ProfileAvatarProps) {
+const ProfileAvatar = React.forwardRef<ProfileAvatarRef, ProfileAvatarProps>(
+    function ProfileAvatar({
+                               size = 120,
+                               iconColor = Colors.accent.yellow,
+                               onImageChange,
+                               editable = false,
+                               isChild = false,
+                               childId
+                           }, ref) {
+
 
     const { user } = useAuth();
     const [uploading, setUploading] = useState(false);
     const [avatarUri, setAvatarUri] = useState<string | null>(null);
     const [loadingAvatar, setLoadingAvatar] = useState(false);
+
+    const avatarApiPath =  () => {
+        if (!user) {
+            return '';
+        }
+        let avatarApiPath = `${USER_AVATAR_PATH}/${user.uid}`;
+        if(isChild){
+            avatarApiPath = `${CHILD_AVATAR_PATH}/${childId}`;
+        }
+        return avatarApiPath;
+    };
+
+    // Expose methods to parent component
+    React.useImperativeHandle(ref, () => ({
+        uploadAvatarForChild: async (childId: number) => {
+            if (!avatarUri || !user) {
+                return false;
+            }
+            try {
+                const token = await user.getIdToken();
+                let form = new FormData();
+                form = await add_image_to_form(avatarUri, form);
+
+                const response = await fetch(`${CHILD_AVATAR_PATH}/${childId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: form,
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Upload failed: ${response.status}`);
+                }
+
+                return true;
+            } catch (error) {
+                console.error('Error uploading child avatar:', error);
+                alert('Error', 'Failed to upload child avatar. Please try again.', []);
+                return false;
+            }
+        },
+        getAvatarUri: () => avatarUri,
+    }));
+
+
 
     const fetchAvatar = async () => {
         if (!user) {
@@ -38,7 +96,7 @@ export default function ProfileAvatar({
 
         try {
             const token = await user.getIdToken();
-            const response = await fetch(`${API_BASE_URL}${UPDATE_AVATAR_PATH}/${user.uid}`, {
+            const response = await fetch(avatarApiPath(), {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
@@ -104,6 +162,15 @@ export default function ProfileAvatar({
             return;
         }
 
+        // Don't upload if this is a child avatar being created (childId will be null initially)
+        if (isChild && !childId) {
+            // Just store the image locally for preview, don't upload yet
+            setAvatarUri(imageUri);
+            onImageChange?.(imageUri);
+            return;
+        }
+
+
         setUploading(true);
 
         try {
@@ -115,7 +182,7 @@ export default function ProfileAvatar({
 
             form = await add_image_to_form(imageUri, form);
 
-            const response = await fetch(`${API_BASE_URL}${UPDATE_AVATAR_PATH}/${user.uid}`, {
+            const response = await fetch(avatarApiPath(), {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -135,7 +202,6 @@ export default function ProfileAvatar({
             // Call the callback with the new image URI
             onImageChange?.(imageUri);
 
-            alert('Success', 'Profile picture updated successfully!', []);
 
         } catch (error) {
             console.error('Error uploading avatar:', error);
@@ -226,8 +292,8 @@ export default function ProfileAvatar({
                             width: penCircleSize,
                             height: penCircleSize,
                             borderRadius: penCircleSize / 2,
-                            right: -penCircleSize * 0.25,
-                            bottom: -penCircleSize * 0.25,
+                            right: penCircleSize * 0.05,
+                            bottom: penCircleSize * 0.05,
                         }
                     ]}>
                         <MaterialCommunityIcons
@@ -241,6 +307,7 @@ export default function ProfileAvatar({
         </View>
     );
 }
+);
 
 const styles = StyleSheet.create({
     avatarContainer: {
@@ -280,3 +347,5 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
 });
+
+export default ProfileAvatar;

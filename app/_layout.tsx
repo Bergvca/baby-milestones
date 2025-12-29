@@ -17,7 +17,8 @@ function RootLayoutNav() {
   useEffect(() => {
     if (loading) return; // Don't navigate while loading
 
-    const inAuthGroup = segments[0] === '(tabs)' || segments[0] === 'profile';
+    const inAuthGroup = segments[0] === '(tabs)' || segments[0] === 'profile' || segments[0] === 'add-family'
+        || segments[0] === 'add-child';
 
     if (user && !inAuthGroup) {
       // User is signed in but not in auth group, redirect to tabs
@@ -37,7 +38,23 @@ function RootLayoutNav() {
     <Stack>
       <Stack.Screen name="login" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="profile" options={{ headerShown: false }} />
+      <Stack.Screen
+          name="add-family"
+          options={{
+            title: 'Add Family',
+            headerBackTitle: 'Back'
+          }}
+      />
+    <Stack.Screen
+        name="add-child"
+        options={{
+            title: 'Add Child',
+            headerBackTitle: 'Back'
+        }}
+    />
+
+
+
     </Stack>
   );
 }

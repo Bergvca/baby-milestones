@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import {API_BASE_URL, POSTS_PATH} from "@/app/constants/api";
+import { POSTS_PATH } from "@/app/constants/api";
 
 function guessContentType(fileName: string): string {
   const ext = fileName.split('.').pop()?.toLowerCase();
@@ -69,16 +69,15 @@ async function buildPostForm(imageUri: string | null | undefined, text: string |
 
 
 export async function uploadPostBinary(params: {
-  apiBaseUrl: string;
   token: string;
   imageUri: string; // from ImagePicker result.assets[0].uri
   date: Date;
   text?: string;
 }) {
-  const { apiBaseUrl, token, imageUri, date, text } = params;
+  const { token, imageUri, date, text } = params;
   const form = await buildPostForm(imageUri, text, date);
 
-  const res = await fetch(`${apiBaseUrl}${POSTS_PATH}`, {
+  const res = await fetch(`${POSTS_PATH}`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -105,7 +104,7 @@ export async function updatePostById(editingPostId: string | null, token: string
 
     const form = await buildPostForm(imageUri, text, selectedDate, editingPostId);
 
-    const response = await fetch(`${API_BASE_URL}${POSTS_PATH}/${editingPostId}`, {
+    const response = await fetch(`${POSTS_PATH}/${editingPostId}`, {
       method: 'PUT',
       headers: {
         Authorization: `Bearer ${token}`,

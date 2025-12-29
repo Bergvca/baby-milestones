@@ -6,7 +6,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import ImageViewer from '@/components/ImageViewer';
 import PostTextField from '@/components/PostTextField';
 import Button from '@/components/Button';
-import {API_BASE_URL, POSTS_PATH} from '@/app/constants/api';
+import {IMAGE_PATH, POSTS_PATH} from '@/app/constants/api';
 import * as FileSystem from 'expo-file-system';
 import { Platform } from 'react-native';
 import {uploadPostBinary, updatePostById} from "@/components/UploadPostBinary";
@@ -56,7 +56,7 @@ export default function Upload() {
         setLoadingPostData(true);
         try {
             // Fetch post details
-            const response = await fetch(`${API_BASE_URL}${POSTS_PATH}/${postId}`, {
+            const response = await fetch(`${POSTS_PATH}/${postId}`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                     Accept: 'application/json',
@@ -75,7 +75,7 @@ export default function Upload() {
 
             // Load the first image if available
             if (postData.media_files && postData.media_files.length > 0) {
-                const imageResponse = await fetch(`${API_BASE_URL}/image/${postData.media_files[0].file_md5}`, {
+                const imageResponse = await fetch(`${IMAGE_PATH}/${postData.media_files[0].file_md5}`, {
                     headers: {
                         Authorization: `Bearer ${token}`
                     }
@@ -87,7 +87,7 @@ export default function Upload() {
                         const blobUrl = URL.createObjectURL(blob);
                         setSelectedImage(blobUrl);
                     } else {
-                        setSelectedImage(`${API_BASE_URL}/image/${postData.media_files[0].file_md5}`);
+                        setSelectedImage(`${IMAGE_PATH}/${postData.media_files[0].file_md5}`);
                     }
                 }
             }
@@ -159,7 +159,7 @@ export default function Upload() {
             // If we're no longer in edit mode, reset the form
             resetFormState();
         }
-    }, [params.editMode, params.postId, params.text, params.date, token, editingPostId]);
+    }, [params.editMode, params.postId, params.text, params.date, token, editingPostId, isEditMode]);
 
     // Also add a useFocusEffect to handle navigation changes
     useFocusEffect(
@@ -223,7 +223,6 @@ export default function Upload() {
             } else {
                 // Create new post
                 await uploadPostBinary({
-                    apiBaseUrl: API_BASE_URL,
                     token,
                     imageUri: selectedImage,
                     text: postText,

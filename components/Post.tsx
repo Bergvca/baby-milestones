@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet, Platform } from 'react-native';
-import { API_BASE_URL } from '@/app/constants/api'; // Adjust the import path as needed
+import { IMAGE_PATH } from '@/app/constants/api'; // Adjust the import path as needed
 import {Colors} from "@/components/colors";
 import PostMenu from './PostMenu';
 
@@ -36,7 +36,7 @@ const Post: React.FC<PostProps> = ({id, date, text, mediaFiles, token, onEdit, o
                 // On web, fetch images with auth headers and convert to blob URLs
                 const imagePromises = mediaFiles.map(async (mediaFile) => {
                     try {
-                        const response = await fetch(`${API_BASE_URL}/image/${mediaFile.file_md5}`, {
+                        const response = await fetch(`${IMAGE_PATH}/${mediaFile.file_md5}`, {
                             headers: {
                                 Authorization: `Bearer ${token}`
                             }
@@ -67,7 +67,7 @@ const Post: React.FC<PostProps> = ({id, date, text, mediaFiles, token, onEdit, o
                 // On native platforms, use direct URI with headers
                 const nativeImages = mediaFiles.map(mediaFile => ({
                     file_md5: mediaFile.file_md5,
-                    uri: `${API_BASE_URL}/image/${mediaFile.file_md5}`
+                    uri: `${IMAGE_PATH}/${mediaFile.file_md5}`
                 }));
                 setAuthenticatedImages(nativeImages);
             }

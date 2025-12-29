@@ -1,10 +1,11 @@
 import React, {useCallback, useEffect, useState} from 'react';
 import {ActivityIndicator, FlatList, StyleSheet, Text, View} from 'react-native';
 import {getAuth, onAuthStateChanged} from 'firebase/auth';
-import {API_BASE_URL, POSTS_PATH} from "@/app/constants/api";
+import {POSTS_PATH} from "@/app/constants/api";
 import Post from '@/components/Post'; // Adjust path as needed
 import {Colors} from "@/components/colors";
 import {useFocusEffect} from "expo-router";
+import {fetchJsonWithAuth} from "@/components/utils";
 
 type MediaFile = {
   file_md5: string;
@@ -17,32 +18,13 @@ type PostData = {
   media_files: MediaFile[];
 };
 
-const buildApiUrl = (path: string) => `${API_BASE_URL}${path}`;
 
 function isPostArray(data: unknown): data is PostData[] {
   return Array.isArray(data);
 }
 
-async function fetchJsonWithAuth<T>(url: string, token: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: 'application/json',
-    },
-    signal,
-  });
-
-  if (!response.ok) {
-    const text = await response.text().catch(() => '');
-    throw new Error(`Request failed (${response.status}): ${text || response.statusText}`);
-  }
-
-  return (await response.json()) as T;
-}
-
 async function fetchPosts(token: string, signal?: AbortSignal): Promise<PostData[]> {
-  const data = await fetchJsonWithAuth<unknown>(buildApiUrl(POSTS_PATH), token, signal);
+  const data = await fetchJsonWithAuth<unknown>(POSTS_PATH, token, signal);
   return isPostArray(data) ? data : [];
 }
 
