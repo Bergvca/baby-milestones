@@ -1,53 +1,24 @@
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {
-    View,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
     Text,
     TextInput,
     TouchableOpacity,
-    StyleSheet,
-    Alert,
-    ScrollView,
-    KeyboardAvoidingView,
-    Platform,
+    View,
 } from 'react-native';
 import {router, useLocalSearchParams} from 'expo-router';
 import {getAuth, onAuthStateChanged} from 'firebase/auth';
-import { Colors } from '@/components/colors';
-import {CHILD_PATH, FAMILY_PATH, POSTS_PATH} from '@/app/constants/api';
+import {Colors} from '@/components/colors';
+import {CHILD_PATH} from '@/app/constants/api';
 import CustomAlert from "@/components/CustomAlert";
-import {fetchJsonWithAuth} from "@/components/utils";
-import Children from "@/components/Children";
-import { screenStyles } from '@/components/screenStyles';
+import {screenStyles} from '@/components/screenStyles';
 import {DatePicker} from "@/components/DatePicker";
+import type {ProfileAvatarRef} from '@/components/ProfileAvatar';
 import ProfileAvatar from "@/components/ProfileAvatar";
-import { useRef } from 'react';
-import type { ProfileAvatarRef } from '@/components/ProfileAvatar';
-
-
-
-interface CreateChildRequest {
-    full_name: string;
-    gender: string;
-    birthdate: Date;
-    birth_length: number;
-    birth_weight: number;
-    family_id: number | null;
-}
-
-
-type MediaFile = {
-    file_md5: string;
-};
-
-type FamilyChild = {
-    id: number;
-    full_name: string;
-    birthdate: string;
-    gender: string;
-    birth_length: number;
-    birth_weight: number;
-    media_file: MediaFile;
-}
+import {CreateChildRequest, fetchFullChildData} from "@/utils/childUtils";
 
 
 export default function AddChild() {
@@ -63,6 +34,7 @@ export default function AddChild() {
     const [showDeleteAlert, setShowDeleteAlert] = useState(false);
     const [childID, setChildID] = useState<number | null>(null);
     const [showDatePicker, setShowDatePicker] = useState(false);
+    const [dataLoading, setDataLoading] = useState(false);
     const avatarRef = useRef<ProfileAvatarRef>(null);
 
 
@@ -100,6 +72,42 @@ export default function AddChild() {
         });
         return unsubscribe;
     }, []);
+
+    useEffect(() => {
+        if (params.editMode === 'true') {
+            setIsEditMode(true);
+            const childIdParam = params.childId ? parseInt(params.childId as string, 10) : null;
+            if (childIdParam) {
+                setChildID(childIdParam);
+            }
+        }
+    }, [params.editMode, params.childId]);
+
+    useEffect(() => {
+        const loadChildData = async () => {
+            if (isEditMode && childID && token) {
+                setDataLoading(true);
+                try {
+                    const childData = await fetchFullChildData(token, childID);
+                    if (childData) {
+                        setChildName(childData.full_name);
+                        setBirthdate(new Date(childData.birthdate));
+                        setGender(childData.gender);
+                        setBirth_length(childData.birth_length);
+                        setBirth_weight(childData.birth_weight);
+                        console.log('Loaded child data:', childData);
+                    }
+                } catch (error) {
+                    console.error('Error loading child data:', error);
+                    Alert.alert('Error', 'Failed to load child data');
+                } finally {
+                    setDataLoading(false);
+                }
+            }
+        };
+
+        loadChildData();
+    }, [isEditMode, childID, token]);
 
 
     const handleCreateOrUpdateChild = async () => {
@@ -207,8 +215,8 @@ export default function AddChild() {
             setShowDeleteAlert(true);
         } else {
             Alert.alert(
-                'Delete Family?',
-                'Are you sure you want to delete this family? This action cannot be undone.',
+                'Delete Child?',
+                'Are you sure you want to delete this child? This action cannot be undone.',
                 [
                     { text: 'Cancel', style: 'cancel' },
                     {
@@ -436,13 +444,15 @@ export default function AddChild() {
                     <Text style={screenStyles.secondaryButtonText}>Cancel</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                    style={screenStyles.dangerButton}
-                    onPress={handleDelete}
-                    disabled={loading}
-                >
-                    <Text style={screenStyles.dangerButtonText}>Delete Child</Text>
-                </TouchableOpacity>
+                {isEditMode && (
+                    <TouchableOpacity
+                        style={screenStyles.dangerButton}
+                        onPress={handleDelete}
+                        disabled={loading}
+                    >
+                        <Text style={screenStyles.dangerButtonText}>Delete Child</Text>
+                    </TouchableOpacity>
+                )}
 
                 <TouchableOpacity
                     style={[

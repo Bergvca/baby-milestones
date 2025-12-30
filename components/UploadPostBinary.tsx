@@ -51,7 +51,11 @@ export async function add_image_to_form(imageUri: string, form: FormData) {
   return form;
 }
 
-async function buildPostForm(imageUri: string | null | undefined, text: string | undefined, date: Date, id?: string | undefined) {
+async function buildPostForm(imageUri: string | null | undefined,
+                             text: string | undefined,
+                             date: Date,
+                             selectedChildrenIds?: number[],
+                             id?: string | undefined) {
   let form = new FormData();
 
   if (imageUri) {
@@ -64,6 +68,9 @@ async function buildPostForm(imageUri: string | null | undefined, text: string |
   if (id) form.append('post_id', id);
 
   form.append('date', date.toISOString());
+
+  if (selectedChildrenIds) {form.append('selected_children_ids', JSON.stringify(selectedChildrenIds));}
+
   return form;
 }
 
@@ -73,9 +80,10 @@ export async function uploadPostBinary(params: {
   imageUri: string; // from ImagePicker result.assets[0].uri
   date: Date;
   text?: string;
+  selectedChildrenIds?: number[];
 }) {
-  const { token, imageUri, date, text } = params;
-  const form = await buildPostForm(imageUri, text, date);
+  const { token, imageUri, date, text, selectedChildrenIds } = params;
+  const form = await buildPostForm(imageUri, text, date, selectedChildrenIds);
 
   const res = await fetch(`${POSTS_PATH}`, {
     method: 'POST',
@@ -98,11 +106,11 @@ export async function uploadPostBinary(params: {
 }
 
 
-export async function updatePostById(editingPostId: string | null, token: string | null, text: string, selectedDate: Date, imageUri: string | null) {
+export async function updatePostById(editingPostId: string | null, token: string | null, text: string, selectedDate: Date, imageUri: string | null, childrenIds: number[] | undefined) {
 
     if (!editingPostId || !token) return;
 
-    const form = await buildPostForm(imageUri, text, selectedDate, editingPostId);
+    const form = await buildPostForm(imageUri, text, selectedDate, childrenIds, editingPostId);
 
     const response = await fetch(`${POSTS_PATH}/${editingPostId}`, {
       method: 'PUT',

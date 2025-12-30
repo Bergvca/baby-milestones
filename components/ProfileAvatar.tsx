@@ -136,9 +136,9 @@ const ProfileAvatar = React.forwardRef<ProfileAvatarRef, ProfileAvatarProps>(
                 URL.revokeObjectURL(avatarUri);
             }
         };
-    }, [user]);
+    }, [user, childId, isChild]);
 
-    // Cleanup blob URL when avatarUri changes
+        // Cleanup blob URL when avatarUri changes
     useEffect(() => {
         return () => {
             if (avatarUri && avatarUri.startsWith('blob:')) {

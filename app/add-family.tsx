@@ -15,7 +15,7 @@ import {getAuth, onAuthStateChanged} from 'firebase/auth';
 import { Colors } from '@/components/colors';
 import {FAMILY_PATH, POSTS_PATH} from '@/app/constants/api';
 import CustomAlert from "@/components/CustomAlert";
-import {fetchJsonWithAuth} from "@/components/utils";
+import {fetchJsonWithAuth} from "@/utils/utils";
 import Children from "@/components/Children";
 import { screenStyles } from '@/components/screenStyles';
 

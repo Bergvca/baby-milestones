@@ -26,7 +26,6 @@ export function DatePicker({
     if (Platform.OS === 'web') {
         return (
             <View style={styles.datePickerContainer}>
-                <Text style={styles.dateLabel}>Date:</Text>
                 <input
                     type="date"
                     value={selectedDate ? selectedDate.toISOString().split('T')[0] : ''}

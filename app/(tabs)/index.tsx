@@ -5,7 +5,7 @@ import {POSTS_PATH} from "@/app/constants/api";
 import Post from '@/components/Post'; // Adjust path as needed
 import {Colors} from "@/components/colors";
 import {useFocusEffect} from "expo-router";
-import {fetchJsonWithAuth} from "@/components/utils";
+import {fetchJsonWithAuth} from "@/utils/utils";
 
 type MediaFile = {
   file_md5: string;
@@ -15,6 +15,7 @@ type PostData = {
   id: number;
   date: string;
   description: string;
+  selected_children_ids: number[];
   media_files: MediaFile[];
 };
 
@@ -143,6 +144,7 @@ function IndexScreen() {
                           date={item.date}
                           text={item.description}
                           mediaFiles={item.media_files}
+                          selectedChildrenIds={item.selected_children_ids}
                           token={token}
                           onDelete={() => {
                             // Refresh posts after deletion

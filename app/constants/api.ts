@@ -8,4 +8,5 @@ export const IMAGE_PATH = `${API_BASE_URL}/media/image`;
 export const FAMILY_PATH = `${API_BASE_URL}/family`;
 export const CHILD_PATH = `${API_BASE_URL}/child`;
 export const CHILD_AVATAR_PATH = `${CHILD_PATH}/avatar`;
+export const CHILD_ALL = `${CHILD_PATH}/all`;
 

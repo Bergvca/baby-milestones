@@ -10,7 +10,6 @@ type Props = {
 export default function PostTextField({ value, onChangeText }: Props) {
     return (
         <View style={styles.container}>
-            <Text style={styles.label}>Post text</Text>
             <TextInput
                 value={value}
                 onChangeText={onChangeText}
@@ -20,7 +19,7 @@ export default function PostTextField({ value, onChangeText }: Props) {
                 autoCapitalize="sentences"
                 autoCorrect
                 style={styles.input}
-                accessibilityLabel="Post text input"
+                accessibilityLabel="Milestone text"
                 placeholderTextColor={Colors.neutral.darkGray}
             />
         </View>

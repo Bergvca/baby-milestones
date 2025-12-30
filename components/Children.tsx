@@ -1,4 +1,4 @@
-import {fetchJsonWithAuth} from "@/components/utils";
+import {fetchJsonWithAuth} from "@/utils/utils";
 import {FAMILY_PATH} from "@/app/constants/api";
 import React, {PropsWithChildren, useCallback, useEffect, useState} from "react";
 import {getAuth, onAuthStateChanged} from "firebase/auth";
@@ -7,6 +7,7 @@ import {Colors} from "@/components/colors";
 import {screenStyles} from "@/components/screenStyles";
 import {router} from "expo-router";
 import {MaterialCommunityIcons} from "@expo/vector-icons";
+import ProfileAvatar from "@/components/ProfileAvatar";
 
 type MediaFile = {
     file_md5: string;
@@ -14,7 +15,7 @@ type MediaFile = {
 
 type FamilyChild = {
     id: number;
-    nickname: string;
+    full_name: string;
     birthdate: string;
     gender: string;
     birth_length: number;
@@ -53,6 +54,18 @@ export default function Children({ familyId, token }: Props) {
             }
         });
     };
+
+    const handleSelectChild = (childId: number) => {
+        router.push({
+            pathname: '/add-child',
+            params: {
+                childId: childId,
+                familyId: familyId,
+                editMode: 'true'
+            }
+        });
+    };
+
 
 
     const refreshChildren = useCallback(async () => {
@@ -96,7 +109,25 @@ export default function Children({ familyId, token }: Props) {
             ) : children.length === 0 ? (
                 <Text style={screenStyles.text}>No children added yet</Text>
             ) : (
-                <Text>{children.length}</Text>
+                <View>
+                    {children.map((child) => (
+                        <TouchableOpacity
+                            key={child.id}
+                            style={screenStyles.menuItem}
+                            onPress={() => handleSelectChild(child.id)}
+                        >
+                            <ProfileAvatar
+                                size={40}
+                                editable={false}
+                                isChild={true}
+                                childId={child.id}
+                            />
+                            <Text style={screenStyles.menuText}>{child.full_name}</Text>
+                            <MaterialCommunityIcons name="chevron-right" style={screenStyles.arrowIcon} />
+                        </TouchableOpacity>
+                    ))}
+                </View>
+
             )
             }
             <TouchableOpacity

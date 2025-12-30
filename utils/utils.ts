@@ -15,3 +15,4 @@ export async function fetchJsonWithAuth<T>(url: string, token: string, signal?: 
 
     return (await response.json()) as T;
 }
+

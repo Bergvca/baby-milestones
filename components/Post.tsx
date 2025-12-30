@@ -1,9 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, Image, StyleSheet, Platform } from 'react-native';
-import { IMAGE_PATH } from '@/app/constants/api'; // Adjust the import path as needed
+import React, {useEffect, useState} from 'react';
+import {View, Text, Image, StyleSheet, Platform} from 'react-native';
+import {IMAGE_PATH} from '@/app/constants/api'; // Adjust the import path as needed
 import {Colors} from "@/components/colors";
 import PostMenu from './PostMenu';
-
 
 
 interface MediaFile {
@@ -11,13 +10,14 @@ interface MediaFile {
 }
 
 interface PostProps {
-    id: number;
-    date: string;
-    text: string;
-    mediaFiles: MediaFile[];
-    token: string;
-    onEdit: () => void;
-    onDelete: () => void;
+    id: number,
+    date: string,
+    text: string,
+    mediaFiles: MediaFile[],
+    token: string,
+    onEdit: () => void,
+    onDelete: () => void,
+    selectedChildrenIds?: number[]
 }
 
 
@@ -26,7 +26,16 @@ interface ImageWithAuth {
     uri: string;
 }
 
-const Post: React.FC<PostProps> = ({id, date, text, mediaFiles, token, onEdit, onDelete }: PostProps) => {
+const Post: React.FC<PostProps> = ({
+                                       id,
+                                       date,
+                                       text,
+                                       mediaFiles,
+                                       token,
+                                       onEdit,
+                                       onDelete,
+                                       selectedChildrenIds
+                                   }: PostProps) => {
     const [authenticatedImages, setAuthenticatedImages] = useState<ImageWithAuth[]>([]);
     const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
 
@@ -91,7 +100,7 @@ const Post: React.FC<PostProps> = ({id, date, text, mediaFiles, token, onEdit, o
 
     const getImageSource = (imageData: ImageWithAuth) => {
         if (Platform.OS === 'web') {
-            return { uri: imageData.uri };
+            return {uri: imageData.uri};
         } else {
             return {
                 uri: imageData.uri,
@@ -119,16 +128,16 @@ const Post: React.FC<PostProps> = ({id, date, text, mediaFiles, token, onEdit, o
                 <View key={imageData.file_md5} style={styles.imageContainer}>
 
                     <Image
-                            // key={imageData.file_md5}
-                            source={getImageSource(imageData)}
-                            style={styles.image}
-                            // borderRadius={20}
-                            resizeMode="cover"
-                            onError={(error) => {
-                                console.error('Image load error:', error);
-                                setImageErrors(prev => new Set(prev).add(imageData.file_md5));
-                            }}
-                        />
+                        // key={imageData.file_md5}
+                        source={getImageSource(imageData)}
+                        style={styles.image}
+                        // borderRadius={20}
+                        resizeMode="cover"
+                        onError={(error) => {
+                            console.error('Image load error:', error);
+                            setImageErrors(prev => new Set(prev).add(imageData.file_md5));
+                        }}
+                    />
                 </View>
 
             ))}
@@ -141,6 +150,7 @@ const Post: React.FC<PostProps> = ({id, date, text, mediaFiles, token, onEdit, o
             )}
 
             <Text style={styles.text}>{text}</Text>
+            <Text>{selectedChildrenIds}</Text>
         </View>
     );
 };

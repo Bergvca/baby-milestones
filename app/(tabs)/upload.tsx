@@ -1,5 +1,6 @@
+
 import React, {useCallback, useEffect, useState} from 'react';
-import {View, StyleSheet, Alert, ActivityIndicator, Text, TouchableOpacity, ScrollView} from 'react-native';
+import {View, Alert, ActivityIndicator, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -7,12 +8,14 @@ import ImageViewer from '@/components/ImageViewer';
 import PostTextField from '@/components/PostTextField';
 import Button from '@/components/Button';
 import {IMAGE_PATH, POSTS_PATH} from '@/app/constants/api';
-import * as FileSystem from 'expo-file-system';
-import { Platform } from 'react-native';
 import {uploadPostBinary, updatePostById} from "@/components/UploadPostBinary";
+import { screenStyles } from '@/components/screenStyles';
 import {Colors} from "@/components/colors";
 import {DatePicker} from "@/components/DatePicker";
 import {router, useFocusEffect, useLocalSearchParams} from "expo-router";
+import { fetchAllChildren, type FamilyChild } from '@/utils/childUtils';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import ProfileAvatar from "@/components/ProfileAvatar";
 
 
 export default function Upload() {
@@ -27,6 +30,9 @@ export default function Upload() {
     const [editingPostId, setEditingPostId] = useState<string | null>(null);
     const [loadingPostData, setLoadingPostData] = useState(false);
     const [isInitialLoad, setIsInitialLoad] = useState(true);
+    const [children, setChildren] = useState<FamilyChild[]>([]);
+    const [selectedChildrenIds, setSelectedChildrenIds] = useState<number[]>([]);
+    const [loadingChildren, setLoadingChildren] = useState(false);
 
     // Get params from navigation
     const params = useLocalSearchParams();
@@ -48,6 +54,31 @@ export default function Upload() {
             year: 'numeric',
             month: 'long',
             day: 'numeric'
+        });
+    };
+
+    // Fetch all children
+    const loadChildren = async (authToken: string) => {
+        setLoadingChildren(true);
+        try {
+            const allChildren = await fetchAllChildren(authToken);
+            setChildren(allChildren);
+        } catch (error) {
+            console.error('Error loading children:', error);
+            Alert.alert('Error', 'Failed to load children');
+        } finally {
+            setLoadingChildren(false);
+        }
+    };
+
+    // Toggle child selection
+    const toggleChildSelection = (childId: number) => {
+        setSelectedChildrenIds(prev => {
+            if (prev.includes(childId)) {
+                return prev.filter(id => id !== childId);
+            } else {
+                return [...prev, childId];
+            }
         });
     };
 
@@ -107,11 +138,15 @@ export default function Upload() {
                 if (user) {
                     const idToken = await user.getIdToken();
                     setToken(idToken);
+                    // Load children when token is available
+                    await loadChildren(idToken);
                 } else {
                     setToken(null);
+                    setChildren([]);
                 }
             } catch {
                 setToken(null);
+                setChildren([]);
             }
         });
         return unsubscribe;
@@ -124,10 +159,11 @@ export default function Upload() {
         setIsEditMode(false);
         setEditingPostId(null);
         setUploadSuccess(false);
+        setSelectedChildrenIds([]);
     };
 
     // Handle edit mode setup
-// Update the edit mode useEffect to handle new edits
+    // Update the edit mode useEffect to handle new edits
     useEffect(() => {
         const editMode = params.editMode;
         const postId = params.postId;
@@ -219,7 +255,7 @@ export default function Upload() {
 
             if (isEditMode && editingPostId) {
                 // Update existing post
-                await updatePostById(editingPostId, token, postText, selectedDate, selectedImage);
+                await updatePostById(editingPostId, token, postText, selectedDate, selectedImage, selectedChildrenIds);
             } else {
                 // Create new post
                 await uploadPostBinary({
@@ -227,6 +263,7 @@ export default function Upload() {
                     imageUri: selectedImage,
                     text: postText,
                     date: selectedDate,
+                    selectedChildrenIds: selectedChildrenIds,
                 });
             }
             setUploadSuccess(true); // show success message instead of image
@@ -243,121 +280,161 @@ export default function Upload() {
 
     if (loadingPostData) {
         return (
-            <View style={styles.center}>
+            <View style={screenStyles.center}>
                 <ActivityIndicator size="large" color={Colors.primary} />
-                <Text style={styles.loadingText}>Loading post data...</Text>
+                <Text style={screenStyles.text}>Loading post data...</Text>
             </View>
         );
     }
 
-
     return (
-        <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-        {uploadSuccess ? (
-                <Text style={styles.successText}>Milestone Created!</Text>
-            ) : (
-                <ImageViewer selectedImage={selectedImage}/>
-            )}
+        <KeyboardAvoidingView
+            style={screenStyles.container}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+            <ScrollView style={screenStyles.scrollView} showsVerticalScrollIndicator={false}>
+                <View style={screenStyles.header}>
+                    <Text style={screenStyles.title}>
+                        {isEditMode ? 'Edit Milestone' : 'Create Milestone'}
+                    </Text>
+                    <Text style={screenStyles.subtitle}>
+                        {isEditMode ? 'Update your precious moment' : 'Share your precious moments'}
+                    </Text>
+                </View>
 
-            {/* Date Picker Section */}
-            <DatePicker
-                onPress={() => setShowDatePicker(true)}
-                disabled={uploading}
-                s={formatDate(selectedDate)}
-                onDateChange={handleWebDateChange}
-                selectedDate={selectedDate}
-            />
+                <View style={screenStyles.form}>
+                    {uploadSuccess ? (
+                        <View style={screenStyles.center}>
+                            <Text style={[screenStyles.title, { color: Colors.primary }]}>
+                                {isEditMode ? 'Milestone Updated!' : 'Milestone Created!'}
+                            </Text>
+                        </View>
+                    ) : (
+                        <>
+                            <View style={screenStyles.addButtonContainer}>
+                                <ImageViewer selectedImage={selectedImage} />
+                            </View>
 
-            {/* Only show DateTimePicker on mobile platforms */}
-            {showDatePicker && Platform.OS !== 'web' && (
-                <DateTimePicker
-                    value={selectedDate}
-                    mode="date"
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                    onChange={onDateChange}
-                />
-            )}
+                            <View style={screenStyles.inputContainer}>
+                                <Text style={screenStyles.label}>Date</Text>
+                                <DatePicker
+                                    onPress={() => setShowDatePicker(true)}
+                                    disabled={uploading}
+                                    s={formatDate(selectedDate)}
+                                    onDateChange={handleWebDateChange}
+                                    selectedDate={selectedDate}
+                                />
+                            </View>
 
-            <PostTextField value={postText} onChangeText={setPostText}/>
+                            {/* Only show DateTimePicker on mobile platforms */}
+                            {showDatePicker && Platform.OS !== 'web' && (
+                                <DateTimePicker
+                                    value={selectedDate}
+                                    mode="date"
+                                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                                    onChange={onDateChange}
+                                />
+                            )}
 
-            <View style={styles.actions}>
-                <Button title="Choose image" onPress={pickImageAsync} disabled={uploading}/>
-                <Button title="Create post" variant="secondary" onPress={onCreatePost} disabled={uploading}/>
-            </View>
+                            {/* Children Multi-Select Section */}
+                            <View style={screenStyles.inputContainer}>
+                                <Text style={screenStyles.label}>Children in this Milestone:</Text>
+                                {loadingChildren ? (
+                                    <ActivityIndicator size="small" color={Colors.primary} />
+                                ) : children.length === 0 ? (
+                                    <Text style={screenStyles.text}>No children available</Text>
+                                ) : (
+                                    <View style={{ gap: 12 }}>
+                                        {children.map((child) => (
+                                            <TouchableOpacity
+                                                key={child.id}
+                                                style={[
+                                                    {
+                                                        flexDirection: 'row',
+                                                        alignItems: 'center',
+                                                        padding: 12,
+                                                        borderWidth: 1,
+                                                        borderColor: selectedChildrenIds.includes(child.id) ? Colors.primary : Colors.neutral.border,
+                                                        borderRadius: 8,
+                                                        backgroundColor: selectedChildrenIds.includes(child.id) ? `${Colors.primary}15` : Colors.neutral.white,
+                                                    }
+                                                ]}
+                                                onPress={() => toggleChildSelection(child.id)}
+                                            >
+                                                <View
+                                                    style={{
+                                                        width: 20,
+                                                        height: 20,
+                                                        borderRadius: 4,
+                                                        borderWidth: 2,
+                                                        borderColor: selectedChildrenIds.includes(child.id) ? Colors.primary : Colors.neutral.lightGray,
+                                                        backgroundColor: selectedChildrenIds.includes(child.id) ? Colors.primary : Colors.neutral.white,
+                                                        justifyContent: 'center',
+                                                        alignItems: 'center',
+                                                        marginRight: 12,
+                                                    }}
+                                                >
+                                                    {selectedChildrenIds.includes(child.id) && (
+                                                        <MaterialCommunityIcons name="check" size={16} color={Colors.neutral.white} />
+                                                    )}
+                                                </View>
+                                                <ProfileAvatar
+                                                    size={40}
+                                                    editable={false}
+                                                    isChild={true}
+                                                    childId={child.id}
+                                                />
+                                                <Text style={screenStyles.menuText}>{child.full_name}</Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                )}
+                            </View>
 
-            {uploading && (
-                <View style={styles.overlay}>
-                    <ActivityIndicator size="large" color="#fff"/>
+                            <View style={screenStyles.inputContainer}>
+                                <Text style={screenStyles.label}>Milestone Description:</Text>
+                                <PostTextField value={postText} onChangeText={setPostText} />
+                            </View>
+                        </>
+                    )}
+                </View>
+            </ScrollView>
+
+            {!uploadSuccess && (
+                <View style={screenStyles.buttonRow}>
+                    <TouchableOpacity
+                        style={screenStyles.secondaryButton}
+                        onPress={pickImageAsync}
+                        disabled={uploading}
+                    >
+                        <Text style={screenStyles.secondaryButtonText}>Choose Image</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[
+                            screenStyles.primaryButton,
+                            uploading && screenStyles.disabledButton,
+                        ]}
+                        onPress={onCreatePost}
+                        disabled={uploading || !selectedImage}
+                    >
+                        <Text
+                            style={[
+                                screenStyles.primaryButtonText,
+                                uploading && screenStyles.disabledButtonText,
+                            ]}
+                        >
+                            {uploading ? 'Uploading...' : isEditMode ? 'Update Post' : 'Create Post'}
+                        </Text>
+                    </TouchableOpacity>
                 </View>
             )}
-        </ScrollView>
+
+            {uploading && (
+                <View style={screenStyles.center}>
+                    <ActivityIndicator size="large" color={Colors.primary} />
+                </View>
+            )}
+        </KeyboardAvoidingView>
     );
 }
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: Colors.neutral.offWhite,
-
-        paddingHorizontal: 16,
-        gap: 16,
-    },
-    contentContainer: {
-        padding: 16,
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100%',
-    },
-    center: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: Colors.neutral.offWhite,
-    },
-    loadingText: {
-        color: Colors.primary,
-        fontSize: 14,
-        marginTop: 8,
-    },
-
-
-    actions: {
-        marginTop: 12,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 16,
-    },
-    overlay: {
-        position: 'absolute',
-        bottom: 24,
-    },
-    successText: {
-        color: Colors.primary,
-        fontSize: 18,
-        fontWeight: '600',
-    },
-    datePickerContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-    },
-    dateLabel: {
-        fontSize: 16,
-        fontWeight: '500',
-        color: Colors.neutral?.darkGray || '#333',
-    },
-    dateButton: {
-        backgroundColor: '#f0f0f0',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: '#ddd',
-    },
-    dateButtonText: {
-        fontSize: 16,
-        color: Colors.neutral?.darkGray || '#333',
-    },
-});
