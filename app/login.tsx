@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
     View,
@@ -11,8 +12,9 @@ import {
     Pressable,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/firebaseConfig';
+import { useAuth } from '@/app/context/AuthContext';
 import Button from '@/components/Button';
 import { Colors } from '@/components/colors';
 
@@ -20,6 +22,7 @@ export default function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
+    const { signInWithGoogle } = useAuth();
 
     const handleSignIn = async () => {
         if (!email || !password) {
@@ -56,8 +59,7 @@ export default function Login() {
     const handleGoogleSignIn = async () => {
         setLoading(true);
         try {
-            const provider = new GoogleAuthProvider();
-            await signInWithPopup(auth, provider);
+            await signInWithGoogle();
         } catch (error: any) {
             Alert.alert('Error', error.message || 'Google sign-in failed');
         } finally {

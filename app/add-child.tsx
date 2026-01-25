@@ -174,7 +174,13 @@ export default function AddChild() {
                 }
             }
 
-            router.back();
+            router.push({
+                pathname: '/add-family',
+                params: {
+                    id: familyId,
+                }
+            });
+
 
         } catch (error) {
             console.error('Error creating child:', error);

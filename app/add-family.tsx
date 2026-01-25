@@ -1,36 +1,26 @@
 import React, {useCallback, useEffect, useState} from 'react';
 import {
-    View,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    StyleSheet,
     Alert,
-    ScrollView,
     KeyboardAvoidingView,
     Platform,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity, useWindowDimensions,
+    View,
 } from 'react-native';
 import {router, useFocusEffect, useLocalSearchParams} from 'expo-router';
 import {getAuth, onAuthStateChanged} from 'firebase/auth';
-import { Colors } from '@/components/colors';
-import {FAMILY_PATH, POSTS_PATH} from '@/app/constants/api';
+import {Colors} from '@/components/colors';
+import {FAMILY_PATH} from '@/app/constants/api';
 import CustomAlert from "@/components/CustomAlert";
 import {fetchJsonWithAuth} from "@/utils/utils";
 import Children from "@/components/Children";
-import { screenStyles } from '@/components/screenStyles';
+import {screenStyles} from '@/components/screenStyles';
+import {CreateFamilyResponse, createOrUpdateFamily} from "@/utils/familyUtils";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 
-interface CreateFamilyRequest {
-    name: string;
-    description: string;
-}
-
-interface CreateFamilyResponse {
-    id: number;
-    name: string;
-    description: string;
-    created_at: string;
-}
 
 type MediaFile = {
     file_md5: string;
@@ -67,7 +57,8 @@ export default function AddFamily() {
     const [showCancelAlert, setShowCancelAlert] = useState(false);
     const [showDeleteAlert, setShowDeleteAlert] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
-
+    const { width } = useWindowDimensions();
+    const isSmallScreen = width < 640;
 
     // Get params from navigation
     const params = useLocalSearchParams();
@@ -76,9 +67,27 @@ export default function AddFamily() {
         useCallback(() => {
             // Trigger a refresh of the Children component by updating the key
             setRefreshKey(prev => prev + 1);
-        }, [])
-    );
 
+            const familyId = params.id;
+            setFamilyID(familyId ? Number(familyId) : null)
+
+            if (familyId && token) {
+                const fetchFamily = async () => {
+                    try {
+                        const response = await fetchJsonWithAuth<{
+                            name: string,
+                            description: string
+                        }>(`${FAMILY_PATH}/${familyId}`, token);
+                        setFamilyName(response.name);
+                        setDescription(response.description);
+                    } catch (error) {
+                        console.error('Error fetching family:', error);
+                    }
+                };
+                fetchFamily();
+            }
+        }, [params.id, token])
+    );
 
 
     useEffect(() => {
@@ -121,33 +130,8 @@ export default function AddFamily() {
                 Alert.alert('Error', 'You must be logged in to create a family');
                 return;
             }
+            let response = await createOrUpdateFamily(familyName, description, isEditMode, familyID, token);
 
-            const familyData: CreateFamilyRequest = {
-                name: familyName.trim(),
-                description: description.trim(),
-            };
-            let response: Response;
-            if (isEditMode) {
-                response = await fetch(`${FAMILY_PATH}/${familyID}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                    },
-                    body: JSON.stringify(familyData),
-                });
-            } else {
-                response = await fetch(FAMILY_PATH, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                    },
-                    body: JSON.stringify(familyData),
-                });
-            }
             if (!response.ok) {
                 const errorText = await response.text().catch(() => '');
                 throw new Error(`Failed to create family (${response.status}): ${errorText || response.statusText}`);
@@ -358,7 +342,11 @@ export default function AddFamily() {
                     </View>
                 </View>
                 <Children  key={refreshKey}
-                           familyId={familyID} token={token} />
+                           familyId={familyID}
+                           token={token}
+                           familyName={familyName}
+                           familyDescription={description}
+                        />
             </ScrollView>
 
             <View style={screenStyles.buttonRow}>
@@ -367,7 +355,8 @@ export default function AddFamily() {
                     onPress={handleCancel}
                     disabled={loading}
                 >
-                    <Text style={screenStyles.secondaryButtonText}>Cancel</Text>
+                    <MaterialIcons name="close" size={20} color={Colors.neutral.darkGray} />
+                    {!isSmallScreen && <Text style={screenStyles.secondaryButtonText}>Cancel</Text>}
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -375,7 +364,9 @@ export default function AddFamily() {
                     onPress={handleDelete}
                     disabled={loading}
                 >
-                    <Text style={screenStyles.dangerButtonText}>Delete Family</Text>
+                    <MaterialIcons name="delete" size={20} color={Colors.neutral.white} />
+                    {!isSmallScreen &&
+                        <Text style={screenStyles.dangerButtonText}>Delete Family</Text>}
                 </TouchableOpacity>
 
                 <TouchableOpacity

@@ -1,6 +1,16 @@
 
 import React, {useCallback, useEffect, useState} from 'react';
-import {View, Alert, ActivityIndicator, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform} from 'react-native';
+import {
+    View,
+    Alert,
+    ActivityIndicator,
+    Text,
+    TouchableOpacity,
+    ScrollView,
+    KeyboardAvoidingView,
+    Platform,
+    useWindowDimensions
+} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -14,12 +24,14 @@ import {Colors} from "@/components/colors";
 import {DatePicker} from "@/components/DatePicker";
 import {router, useFocusEffect, useLocalSearchParams} from "expo-router";
 import { fetchAllChildren, type FamilyChild } from '@/utils/childUtils';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import ProfileAvatar from "@/components/ProfileAvatar";
+import CustomAlert from '@/components/CustomAlert';
+
 
 
 export default function Upload() {
-    const [selectedImage, setSelectedImage] = useState<string | null>(null);
+    const [selectedImages, setSelectedImages] = useState<string[]>([]);
     const [postText, setPostText] = useState<string>('');
     const [token, setToken] = useState<string | null>(null);
     const [uploading, setUploading] = useState(false);
@@ -33,9 +45,22 @@ export default function Upload() {
     const [children, setChildren] = useState<FamilyChild[]>([]);
     const [selectedChildrenIds, setSelectedChildrenIds] = useState<number[]>([]);
     const [loadingChildren, setLoadingChildren] = useState(false);
+    const { width } = useWindowDimensions();
+    const isSmallScreen = width < 640;
+
+    // Alert state
+    const [alertVisible, setAlertVisible] = useState(false);
+    const [alertTitle, setAlertTitle] = useState('');
+    const [alertMessage, setAlertMessage] = useState('');
 
     // Get params from navigation
     const params = useLocalSearchParams();
+
+    const showAlert = (title: string, message: string) => {
+        setAlertTitle(title);
+        setAlertMessage(message);
+        setAlertVisible(true);
+    };
 
 
     const onDateChange = (event: any, date?: Date) => {
@@ -104,23 +129,38 @@ export default function Upload() {
             setPostText(postData.description || '');
             setSelectedDate(new Date(postData.date));
 
-            // Load the first image if available
-            if (postData.media_files && postData.media_files.length > 0) {
-                const imageResponse = await fetch(`${IMAGE_PATH}/${postData.media_files[0].file_md5}`, {
-                    headers: {
-                        Authorization: `Bearer ${token}`
-                    }
-                });
+            // Set selected children IDs if available
+            if (postData.selected_children_ids && Array.isArray(postData.selected_children_ids)) {
+                 setSelectedChildrenIds(postData.selected_children_ids);
+            }
 
-                if (imageResponse.ok) {
-                    if (Platform.OS === 'web') {
-                        const blob = await imageResponse.blob();
-                        const blobUrl = URL.createObjectURL(blob);
-                        setSelectedImage(blobUrl);
-                    } else {
-                        setSelectedImage(`${IMAGE_PATH}/${postData.media_files[0].file_md5}`);
+            // Load all images if available
+            if (postData.media_files && postData.media_files.length > 0) {
+                const loadedImages: string[] = [];
+
+                for (const mediaFile of postData.media_files) {
+                    try {
+                        const imageResponse = await fetch(`${IMAGE_PATH}/${mediaFile.file_md5}`, {
+                            headers: {
+                                Authorization: `Bearer ${token}`
+                            }
+                        });
+
+                        if (imageResponse.ok) {
+                            if (Platform.OS === 'web') {
+                                const blob = await imageResponse.blob();
+                                const blobUrl = URL.createObjectURL(blob);
+                                loadedImages.push(blobUrl);
+                            } else {
+                                loadedImages.push(`${IMAGE_PATH}/${mediaFile.file_md5}`);
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error loading image:', error);
                     }
                 }
+
+                setSelectedImages(loadedImages);
             }
         } catch (error) {
             console.error('Error loading post for editing:', error);
@@ -152,8 +192,15 @@ export default function Upload() {
         return unsubscribe;
     }, []);
 
+    useFocusEffect(
+        useCallback(() => {
+            resetFormState();
+        }, [])
+    );
+
+
     const resetFormState = () => {
-        setSelectedImage(null);
+        setSelectedImages([]);
         setPostText('');
         setSelectedDate(new Date());
         setIsEditMode(false);
@@ -211,20 +258,25 @@ export default function Upload() {
     const pickImageAsync = async () => {
         const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!permission.granted) {
-            Alert.alert('Permission required', 'Please grant photo library access to choose an image.');
+            Alert.alert('Permission required', 'Please grant photo library access to choose images.');
             return;
         }
 
         const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
+            allowsMultipleSelection: true,
             quality: 1,
         });
 
         if (!result.canceled) {
-            setSelectedImage(result.assets[0].uri);
-            setUploadSuccess(false); // reset success state when picking a new image
+            const newImages = result.assets.map(asset => asset.uri);
+            setSelectedImages(prev => [...prev, ...newImages]);
+            setUploadSuccess(false); // reset success state when picking new images
         }
+    };
+
+    const removeImage = (index: number) => {
+        setSelectedImages(prev => prev.filter((_, i) => i !== index));
     };
 
     const handleUploadSuccess = async () => {
@@ -242,11 +294,11 @@ export default function Upload() {
 
     const onCreatePost = async () => {
         if (!token) {
-            Alert.alert('Not signed in', 'Please sign in before creating a post.');
+            showAlert('Not signed in', 'Please sign in before creating a post.');
             return;
         }
-        if (!selectedImage) {
-            Alert.alert('Image required', 'Please choose an image to create a post.');
+        if (selectedImages.length === 0 && !postText.trim()) {
+            showAlert('Content required', 'Please choose at least one image or add some text to create a post.');
             return;
         }
 
@@ -254,13 +306,13 @@ export default function Upload() {
             setUploading(true);
 
             if (isEditMode && editingPostId) {
-                // Update existing post
-                await updatePostById(editingPostId, token, postText, selectedDate, selectedImage, selectedChildrenIds);
+                // Update existing post with multiple images
+                await updatePostById(editingPostId, token, postText, selectedDate, selectedImages, selectedChildrenIds);
             } else {
-                // Create new post
+                // Create new post with multiple images
                 await uploadPostBinary({
                     token,
-                    imageUri: selectedImage,
+                    imageUris: selectedImages,
                     text: postText,
                     date: selectedDate,
                     selectedChildrenIds: selectedChildrenIds,
@@ -288,7 +340,21 @@ export default function Upload() {
     }
 
     return (
-        <KeyboardAvoidingView
+        <>
+            <CustomAlert
+                visible={alertVisible}
+                title={alertTitle}
+                message={alertMessage}
+                buttons={[
+                    {
+                        text: 'OK',
+                        onPress: () => setAlertVisible(false),
+                    },
+                ]}
+                onRequestClose={() => setAlertVisible(false)}
+            />
+
+            <KeyboardAvoidingView
             style={screenStyles.container}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
@@ -312,7 +378,7 @@ export default function Upload() {
                     ) : (
                         <>
                             <View style={screenStyles.addButtonContainer}>
-                                <ImageViewer selectedImage={selectedImage} />
+                                <ImageViewer selectedImages={selectedImages} onRemoveImage={removeImage} onPickImages={pickImageAsync} />
                             </View>
 
                             <View style={screenStyles.inputContainer}>
@@ -407,7 +473,9 @@ export default function Upload() {
                         onPress={pickImageAsync}
                         disabled={uploading}
                     >
-                        <Text style={screenStyles.secondaryButtonText}>Choose Image</Text>
+                        <MaterialIcons name="image" size={20} color={Colors.neutral.darkGray} />
+                        {!isSmallScreen && <Text style={screenStyles.secondaryButtonText}>Choose Images</Text>}
+
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -416,7 +484,7 @@ export default function Upload() {
                             uploading && screenStyles.disabledButton,
                         ]}
                         onPress={onCreatePost}
-                        disabled={uploading || !selectedImage}
+                        disabled={uploading}
                     >
                         <Text
                             style={[
@@ -436,5 +504,6 @@ export default function Upload() {
                 </View>
             )}
         </KeyboardAvoidingView>
+        </>
     );
 }

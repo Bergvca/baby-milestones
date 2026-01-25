@@ -1,8 +1,9 @@
 import {fetchJsonWithAuth} from "@/utils/utils";
+import {CreateFamilyRequest, CreateFamilyResponse, createOrUpdateFamily} from "@/utils/familyUtils";
 import {FAMILY_PATH} from "@/app/constants/api";
 import React, {PropsWithChildren, useCallback, useEffect, useState} from "react";
 import {getAuth, onAuthStateChanged} from "firebase/auth";
-import {ActivityIndicator, Button, StyleSheet, Text, TouchableOpacity, View} from "react-native";
+import {ActivityIndicator, Alert, Button, StyleSheet, Text, TouchableOpacity, View} from "react-native";
 import {Colors} from "@/components/colors";
 import {screenStyles} from "@/components/screenStyles";
 import {router} from "expo-router";
@@ -36,24 +37,83 @@ async function fetchChilds(token: string, familyID: number | null, signal?: Abor
 type Props = PropsWithChildren<{
     familyId: number | null;
     token: string | null;
+    familyName: string | null;
+    familyDescription: string | null;
 }>;
 
 
-export default function Children({ familyId, token }: Props) {
+export default function Children({ familyId, token, familyName, familyDescription }: Props) {
     const [children, setChildren] = useState<FamilyChild[]>([]);
     const [authLoading, setAuthLoading] = useState(true);
     const [childrenLoading, setChildrenLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [refreshKey, setRefreshKey] = useState(0);
+    const [loading, setLoading] = useState(false);
+    const [familyID, setFamilyID] = useState<number | null>(null);
 
-    const handleAddChild = () => {
-        router.push({
-            pathname: '/add-child',
-            params: {
-                familyId: familyId,
+    const handleAddChild = async () => {
+        // First, ensure the family name is set
+        if (familyName !== null && !familyName.trim()) {
+            Alert.alert('Error', 'Please enter a family name before adding a child');
+            return;
+        }
+
+        // If family is not saved yet (no familyID), save it first
+        if (familyId === null) {
+            setLoading(true);
+            try {
+                const auth = getAuth();
+                const user = auth.currentUser;
+
+                if (!user) {
+                    Alert.alert('Error', 'You must be logged in to create a family');
+                    return;
+                }
+                if (familyName === null) {
+                    // should not happen see above
+                    familyName = '';
+                }
+                if (familyDescription === null) {
+                    familyDescription = '';
+                }
+
+                let response = await createOrUpdateFamily(familyName, familyDescription, false, null, token);
+
+                if (!response.ok) {
+                    const errorText = await response.text().catch(() => '');
+                    throw new Error(`Failed to create family (${response.status}): ${errorText || response.statusText}`);
+                }
+
+                const createdFamily: CreateFamilyResponse = await response.json();
+                setFamilyID(createdFamily.id);
+
+                // Navigate to add-child with the newly created family ID
+                router.push({
+                    pathname: '/add-child',
+                    params: {
+                        familyId: createdFamily.id,
+                    }
+                });
+            } catch (error) {
+                console.error('Error creating family:', error);
+                Alert.alert(
+                    'Error',
+                    error instanceof Error ? error.message : 'Failed to create family. Please try again.'
+                );
+            } finally {
+                setLoading(false);
             }
-        });
+        } else {
+            // Family already exists, navigate to add-child
+            router.push({
+                pathname: '/add-child',
+                params: {
+                    familyId: familyID,
+                }
+            });
+        }
     };
+
 
     const handleSelectChild = (childId: number) => {
         router.push({
@@ -93,6 +153,10 @@ export default function Children({ familyId, token }: Props) {
     useEffect(() => {
         if (!token) return;
         refreshChildren();
+        if (familyId !== null) {
+            setFamilyID(familyId);
+        }
+
     }, [token, familyId, refreshKey, refreshChildren]);
 
     return (
@@ -133,9 +197,13 @@ export default function Children({ familyId, token }: Props) {
             <TouchableOpacity
                 style={screenStyles.menuItem}
                 onPress={handleAddChild}
+                disabled={loading || !familyName}
+
             >
                 <MaterialCommunityIcons name="human-child" style={screenStyles.primaryIcon} />
-                <Text style={screenStyles.menuText}>Add Child</Text>
+                <Text style={screenStyles.menuText}
+                    disabled={loading || !familyName}>Add child
+                </Text>
                 <MaterialCommunityIcons name="plus" style={screenStyles.arrowIcon} />
             </TouchableOpacity>
 

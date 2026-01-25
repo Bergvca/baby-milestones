@@ -1,9 +1,11 @@
+
 import React, {useCallback, useEffect, useState} from 'react';
-import {ActivityIndicator, FlatList, StyleSheet, Text, View} from 'react-native';
+import {ActivityIndicator, FlatList, Text, View} from 'react-native';
 import {getAuth, onAuthStateChanged} from 'firebase/auth';
 import {POSTS_PATH} from "@/app/constants/api";
-import Post from '@/components/Post'; // Adjust path as needed
+import Post from '@/components/Post';
 import {Colors} from "@/components/colors";
+import {screenStyles} from "@/components/screenStyles";
 import {useFocusEffect} from "expo-router";
 import {fetchJsonWithAuth} from "@/utils/utils";
 
@@ -78,8 +80,6 @@ function IndexScreen() {
     return unsubscribe;
   }, []);
 
-  // Fetch posts when we have a token
-
   // Fetch posts when we have a token or when refreshKey changes
   useEffect(() => {
     if (!token) return;
@@ -105,38 +105,38 @@ function IndexScreen() {
 
   if (authLoading) {
     return (
-        <View style={styles.center}>
-          <ActivityIndicator color="#fff" />
-          <Text style={styles.text}>Checking session…</Text>
+        <View style={screenStyles.center}>
+          <ActivityIndicator color={Colors.primary || '#fff'} />
+          <Text style={screenStyles.text}>Checking session…</Text>
         </View>
     );
   }
 
   if (!token) {
     return (
-        <View style={styles.center}>
-          <Text style={styles.text}>Please log in to see posts.</Text>
+        <View style={screenStyles.center}>
+          <Text style={screenStyles.text}>Please log in to see posts.</Text>
         </View>
     );
   }
 
   return (
-      <View style={styles.container}>
+      <View style={screenStyles.container}>
         {postsLoading ? (
-            <View style={styles.center}>
+            <View style={screenStyles.center}>
               <ActivityIndicator color={Colors.primary || '#fff'} size="large" animating={true} style={{marginBottom: 16}} />
-              <Text style={styles.text}>Loading posts…</Text>
+              <Text style={screenStyles.text}>Loading posts…</Text>
             </View>
         ) : error ? (
-            <Text style={styles.error}>Error: {error}</Text>
+            <Text style={screenStyles.errorText}>Error: {error}</Text>
         ) : posts.length === 0 ? (
-            <Text style={styles.text}>no posts yet</Text>
+            <Text style={screenStyles.text}>no posts yet</Text>
         ) : (
-            
+
             <FlatList
                 data={posts}
                 keyExtractor={keyExtractor}
-                contentContainerStyle={styles.listContent}
+                contentContainerStyle={screenStyles.listContent}
                 renderItem={({ item }) => (
                     <>
                       <Post
@@ -162,31 +162,5 @@ function IndexScreen() {
       </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.neutral?.lightGray || '#25292e',
-    padding: 16,
-  },
-  center: {
-    flex: 1,
-    backgroundColor: Colors.neutral?.darkGray || '#25292e',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  text: {
-    color: Colors.neutral?.lightGray || '#fff',
-    fontSize: 16,
-  },
-  error: {
-    color: '#ff6b6b',
-    fontSize: 14,
-  },
-  listContent: {
-    paddingBottom: 24,
-  },
-});
 
 export default IndexScreen;

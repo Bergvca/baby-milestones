@@ -23,12 +23,12 @@ export const screenStyles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
         padding: 16,
-        backgroundColor: Colors.neutral?.darkGray || "#25292e",
+        backgroundColor: Colors.neutral?.offWhite || "#25292e",
     },
     header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        justifyContent: 'flex-start',
         paddingHorizontal: 16,
         paddingTop: 12,
         backgroundColor: Colors.neutral.white,
@@ -150,10 +150,15 @@ export const screenStyles = StyleSheet.create({
         borderColor: Colors.neutral.lightGray,
         alignItems: "center",
         backgroundColor: Colors.neutral.white,
+        justifyContent: "center",
+        flexDirection: "row",
+        gap: 8,
+        minWidth: 44,
+        minHeight: 44,
     },
 
     secondaryButtonText: {
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: "600",
         color: Colors.neutral.darkGray,
     },
@@ -165,10 +170,17 @@ export const screenStyles = StyleSheet.create({
         borderRadius: 8,
         backgroundColor: Colors.secondary,
         alignItems: "center",
+        justifyContent: "center",
+        flexDirection: "row",
+        gap: 8,
+        minWidth: 44,
+        minHeight: 44,
+
     },
 
+
     dangerButtonText: {
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: "600",
         color: Colors.neutral.white,
     },
@@ -186,7 +198,7 @@ export const screenStyles = StyleSheet.create({
 
     primaryButtonText: {
         color: "#ffffff",
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: "600",
     },
 
@@ -209,6 +221,10 @@ export const screenStyles = StyleSheet.create({
         alignItems: 'center',
         paddingBottom: 15,
         marginBottom: 16,
+        shadowColor: Colors.neutral.darkGray,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
     },
     avatarWrapper: {
         marginBottom: 16,

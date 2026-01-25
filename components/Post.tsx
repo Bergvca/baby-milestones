@@ -1,8 +1,13 @@
+
 import React, {useEffect, useState} from 'react';
 import {View, Text, Image, StyleSheet, Platform} from 'react-native';
-import {IMAGE_PATH} from '@/app/constants/api'; // Adjust the import path as needed
+import {IMAGE_PATH} from '@/app/constants/api';
 import {Colors} from "@/components/colors";
+import {screenStyles} from "@/components/screenStyles";
 import PostMenu from './PostMenu';
+import {formatDate} from "@/utils/utils";
+import ProfileAvatar, { ProfileAvatarRef } from '@/components/ProfileAvatar';
+
 
 
 interface MediaFile {
@@ -114,7 +119,22 @@ const Post: React.FC<PostProps> = ({
     return (
         <View style={styles.container}>
             <View style={styles.postHeader}>
-                <Text style={styles.date}>{date}</Text>
+                <View style={styles.childAvatarsContainer}>
+                    {selectedChildrenIds && selectedChildrenIds.length > 0 && (
+                        selectedChildrenIds.map((childId) => (
+                            <View key={childId} style={styles.avatarWrapper}>
+                                <ProfileAvatar
+                                    size={40}
+                                    editable={false}
+                                    isChild={true}
+                                    childId={childId}
+                                />
+                            </View>
+                        ))
+                    )}
+                </View>
+
+                <Text style={styles.date}>{formatDate(date)}</Text>
                 <PostMenu
                     postId={id}
                     token={token}
@@ -128,10 +148,8 @@ const Post: React.FC<PostProps> = ({
                 <View key={imageData.file_md5} style={styles.imageContainer}>
 
                     <Image
-                        // key={imageData.file_md5}
                         source={getImageSource(imageData)}
                         style={styles.image}
-                        // borderRadius={20}
                         resizeMode="cover"
                         onError={(error) => {
                             console.error('Image load error:', error);
@@ -144,13 +162,13 @@ const Post: React.FC<PostProps> = ({
 
             {/* Show error message for failed images */}
             {imageErrors.size > 0 && (
-                <Text style={styles.errorText}>
+                <Text style={screenStyles.errorText}>
                     Some images failed to load
                 </Text>
             )}
 
-            <Text style={styles.text}>{text}</Text>
-            <Text>{selectedChildrenIds}</Text>
+            <Text style={screenStyles.text}>{text}</Text>
+
         </View>
     );
 };
@@ -158,18 +176,24 @@ const Post: React.FC<PostProps> = ({
 
 const styles = StyleSheet.create({
     container: {
-        backgroundColor: Colors.neutral?.offWhite || '#25292e',
+        backgroundColor: Colors.neutral.white,
         borderRadius: 12,
         padding: 16,
         marginBottom: 16,
-        shadowColor: Colors.neutral.darkGray || '#000',
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
+        shadowColor: Colors.neutral.darkGray,
+        shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.1,
-        shadowRadius: 3.84,
+        shadowRadius: 2,
         elevation: 5,
+    },
+    childAvatarsContainer: {
+        flexDirection: 'row',
+        gap: 8,
+        flex: 1,
+    },
+    avatarWrapper: {
+        width: 32,
+        height: 32,
     },
     postHeader: {
         flexDirection: 'row',
@@ -194,17 +218,6 @@ const styles = StyleSheet.create({
         fontSize: 14,
         marginBottom: 8,
     },
-    text: {
-        color: Colors.primary,
-        fontSize: 16,
-        lineHeight: 22,
-    },
-    errorText: {
-        color: '#ff6b6b',
-        fontSize: 14,
-        fontStyle: 'italic',
-        marginBottom: 12,
-    }
 });
 
 

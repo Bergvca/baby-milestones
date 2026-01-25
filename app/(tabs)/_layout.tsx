@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import {Platform, TouchableOpacity} from 'react-native';
+import {Platform, TouchableOpacity, useWindowDimensions} from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useEffect } from 'react';
 import { router } from 'expo-router';
@@ -10,6 +10,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function Layout() {
     const { user } = useAuth();
+    const { width } = useWindowDimensions();
+    const isSmallScreen = width < 640;
 
     useEffect(() => {
         if (!user) {
@@ -48,6 +50,7 @@ export default function Layout() {
             tabBarLabelStyle: {
                 fontSize: 12,
                 fontWeight: '500',
+                display: isSmallScreen ? 'none' : 'flex',
             },
             headerShown: false,
 
@@ -67,8 +70,8 @@ export default function Layout() {
         <Tabs.Screen
             name="upload"
             options={{
-                title: 'Upload',
-                tabBarLabel: 'Upload',
+                title: 'Create Milestone',
+                tabBarLabel: 'Create Milestone',
                 tabBarIcon: ({ color, size }) => (
                     <MaterialCommunityIcons name="upload" size={size} color={color}/>
                 ),

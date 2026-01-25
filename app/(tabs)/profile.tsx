@@ -148,7 +148,8 @@ export default function Profile() {
                         <ProfileAvatar
                             size={130}
                             editable={true}
-
+                            isChild={false}
+                            childId={null}
                         />
                     </View>
                     <Text style={screenStyles.userName}>

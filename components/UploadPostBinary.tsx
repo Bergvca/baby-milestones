@@ -51,15 +51,17 @@ export async function add_image_to_form(imageUri: string, form: FormData) {
   return form;
 }
 
-async function buildPostForm(imageUri: string | null | undefined,
+async function buildPostForm(imageUris: string[] | null | undefined,
                              text: string | undefined,
                              date: Date,
                              selectedChildrenIds?: number[],
                              id?: string | undefined) {
   let form = new FormData();
 
-  if (imageUri) {
-    form = await add_image_to_form(imageUri, form);
+  if (imageUris && imageUris.length > 0) {
+    for (const imageUri of imageUris) {
+      form = await add_image_to_form(imageUri, form);
+    }
   }
 
   // Always append text, even if empty string (API might require this field)
@@ -77,13 +79,13 @@ async function buildPostForm(imageUri: string | null | undefined,
 
 export async function uploadPostBinary(params: {
   token: string;
-  imageUri: string; // from ImagePicker result.assets[0].uri
+  imageUris: string[];
+  text: string;
   date: Date;
-  text?: string;
-  selectedChildrenIds?: number[];
+  selectedChildrenIds: number[]
 }) {
-  const { token, imageUri, date, text, selectedChildrenIds } = params;
-  const form = await buildPostForm(imageUri, text, date, selectedChildrenIds);
+  const { token, imageUris, date, text, selectedChildrenIds } = params;
+  const form = await buildPostForm(imageUris, text, date, selectedChildrenIds);
 
   const res = await fetch(`${POSTS_PATH}`, {
     method: 'POST',
@@ -106,11 +108,11 @@ export async function uploadPostBinary(params: {
 }
 
 
-export async function updatePostById(editingPostId: string | null, token: string | null, text: string, selectedDate: Date, imageUri: string | null, childrenIds: number[] | undefined) {
+export async function updatePostById(editingPostId: string | null, token: string | null, text: string, selectedDate: Date, imageUris: string[] | null, childrenIds: number[] | undefined) {
 
     if (!editingPostId || !token) return;
 
-    const form = await buildPostForm(imageUri, text, selectedDate, childrenIds, editingPostId);
+    const form = await buildPostForm(imageUris, text, selectedDate, childrenIds, editingPostId);
 
     const response = await fetch(`${POSTS_PATH}/${editingPostId}`, {
       method: 'PUT',
