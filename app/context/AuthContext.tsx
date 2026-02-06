@@ -11,6 +11,7 @@ import {
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
+import {Platform} from "react-native";
 
 // Complete the auth session for proper cleanup
 WebBrowser.maybeCompleteAuthSession();
@@ -32,13 +33,38 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
+    // Configure redirect URI based on platform
+    const getRedirectUri = () => {
+        if (Platform.OS === 'web') {
+            // Check if we're running locally or on production
+            if (typeof window !== 'undefined') {
+                const currentUrl = window.location.origin + window.location.pathname;
+
+                // For local development
+                if (currentUrl.includes('localhost') || currentUrl.includes('127.0.0.1')) {
+                    return window.location.origin + '/';
+                }
+
+                // For production (GitHub Pages)
+                return 'https://bergvca.github.io/baby-milestones/';
+            }
+
+            // Fallback
+            return 'https://bergvca.github.io/baby-milestones/';
+        } else {
+            // For Expo Go and mobile development
+            return makeRedirectUri({
+                scheme: undefined,
+                preferLocalhost: true,
+            });
+        }
+    };
+
 
     // Configure Google Auth Request with proper redirect URI for Expo Go
     const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
         clientId: '709551532680-8tclo8jnqk8l9197d209duqmi6l2j189.apps.googleusercontent.com',
-        redirectUri: makeRedirectUri({
-            scheme: undefined, // Use default for Expo Go
-        }),
+        redirectUri: getRedirectUri()
     });
 
     useEffect(() => {

@@ -1,14 +1,12 @@
-
 import React, {useEffect, useState} from 'react';
-import {View, Text, Image, StyleSheet, Platform} from 'react-native';
+import {View, Text, StyleSheet, Platform} from 'react-native';
 import {IMAGE_PATH} from '@/app/constants/api';
 import {Colors} from "@/components/colors";
 import {screenStyles} from "@/components/screenStyles";
 import PostMenu from './PostMenu';
 import {formatDate} from "@/utils/utils";
-import ProfileAvatar, { ProfileAvatarRef } from '@/components/ProfileAvatar';
-
-
+import ProfileAvatar from '@/components/ProfileAvatar';
+import ImageViewer from "@/components/ImageViewer";
 
 interface MediaFile {
     file_md5: string;
@@ -25,24 +23,24 @@ interface PostProps {
     selectedChildrenIds?: number[]
 }
 
-
 interface ImageWithAuth {
     file_md5: string;
     uri: string;
 }
 
 const Post: React.FC<PostProps> = ({
-                                       id,
-                                       date,
-                                       text,
-                                       mediaFiles,
-                                       token,
-                                       onEdit,
-                                       onDelete,
-                                       selectedChildrenIds
-                                   }: PostProps) => {
+    id,
+    date,
+    text,
+    mediaFiles,
+    token,
+    onEdit,
+    onDelete,
+    selectedChildrenIds
+}: PostProps) => {
     const [authenticatedImages, setAuthenticatedImages] = useState<ImageWithAuth[]>([]);
     const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
+    const imageUris: string[] = authenticatedImages.map(image => image.uri);
 
     useEffect(() => {
         const fetchImages = async () => {
@@ -57,6 +55,7 @@ const Post: React.FC<PostProps> = ({
                         });
 
                         if (!response.ok) {
+                            console.error(`Failed to fetch image ${mediaFile.file_md5}: ${response.status} ${response.statusText}`);
                             throw new Error(`Failed to fetch image: ${response.status}`);
                         }
 
@@ -78,7 +77,7 @@ const Post: React.FC<PostProps> = ({
                 const validImages = results.filter((img): img is ImageWithAuth => img !== null);
                 setAuthenticatedImages(validImages);
             } else {
-                // On native platforms, use direct URI with headers
+                // On native platforms, use direct URI (headers will be passed to ImageViewer)
                 const nativeImages = mediaFiles.map(mediaFile => ({
                     file_md5: mediaFile.file_md5,
                     uri: `${IMAGE_PATH}/${mediaFile.file_md5}`
@@ -102,19 +101,6 @@ const Post: React.FC<PostProps> = ({
             }
         };
     }, [mediaFiles, token]);
-
-    const getImageSource = (imageData: ImageWithAuth) => {
-        if (Platform.OS === 'web') {
-            return {uri: imageData.uri};
-        } else {
-            return {
-                uri: imageData.uri,
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            };
-        }
-    };
 
     return (
         <View style={styles.container}>
@@ -143,22 +129,10 @@ const Post: React.FC<PostProps> = ({
                 />
             </View>
 
-
-            {authenticatedImages.map((imageData) => (
-                <View key={imageData.file_md5} style={styles.imageContainer}>
-
-                    <Image
-                        source={getImageSource(imageData)}
-                        style={styles.image}
-                        resizeMode="cover"
-                        onError={(error) => {
-                            console.error('Image load error:', error);
-                            setImageErrors(prev => new Set(prev).add(imageData.file_md5));
-                        }}
-                    />
-                </View>
-
-            ))}
+            <ImageViewer 
+                selectedImages={imageUris} 
+                imageHeaders={Platform.OS !== 'web' ? { Authorization: `Bearer ${token}` } : undefined}
+            />
 
             {/* Show error message for failed images */}
             {imageErrors.size > 0 && (
@@ -168,11 +142,9 @@ const Post: React.FC<PostProps> = ({
             )}
 
             <Text style={screenStyles.text}>{text}</Text>
-
         </View>
     );
 };
-
 
 const styles = StyleSheet.create({
     container: {
@@ -201,24 +173,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 12,
     },
-    imageContainer: {
-        width: '100%',
-        height: 300,
-        marginBottom: 12,
-        borderRadius: 12,
-        overflow: 'hidden',
-        backgroundColor: 'transparent',
-    },
-    image: {
-        width: '100%',
-        height: '100%',
-    },
     date: {
         color: Colors.secondary,
         fontSize: 14,
         marginBottom: 8,
     },
 });
-
 
 export default Post;

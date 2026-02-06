@@ -19,6 +19,7 @@ import {DatePicker} from "@/components/DatePicker";
 import type {ProfileAvatarRef} from '@/components/ProfileAvatar';
 import ProfileAvatar from "@/components/ProfileAvatar";
 import {CreateChildRequest, fetchFullChildData} from "@/utils/childUtils";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 
 export default function AddChild() {
@@ -51,10 +52,13 @@ export default function AddChild() {
         });
     };
 
-    const handleWebDateChange = (date: Date) => {
-        setBirthdate(date);
-    };
 
+    const onDateChange = (event: any, date?: Date) => {
+        setShowDatePicker(Platform.OS === 'ios');
+        if (date) {
+            setBirthdate(date);
+        }
+    };
 
     useEffect(() => {
         const auth = getAuth();
@@ -372,6 +376,17 @@ export default function AddChild() {
                             selectedDate={birthdate}
                         />
                     </View>
+
+                    {/* Only show DateTimePicker on mobile platforms */}
+                    {showDatePicker && Platform.OS !== 'web' && (
+                        <DateTimePicker
+                            value={birthdate}
+                            mode="date"
+                            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                            onChange={onDateChange}
+                        />
+                    )}
+
                     {/*gender input*/}
                     <View style={screenStyles.inputContainer}>
                     <Text style={screenStyles.label}>Gender *</Text>
@@ -483,4 +498,3 @@ export default function AddChild() {
         </KeyboardAvoidingView>
     );
 }
-
