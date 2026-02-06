@@ -26,6 +26,7 @@ import { fetchAllChildren, type FamilyChild } from '@/utils/childUtils';
 import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import ProfileAvatar from "@/components/ProfileAvatar";
 import CustomAlert from '@/components/CustomAlert';
+import * as FileSystemLegacy from 'expo-file-system/legacy';
 
 
 
@@ -139,19 +140,30 @@ export default function Upload() {
 
                 for (const mediaFile of postData.media_files) {
                     try {
-                        const imageResponse = await fetch(`${IMAGE_PATH}/${mediaFile.file_md5}`, {
-                            headers: {
-                                Authorization: `Bearer ${token}`
-                            }
-                        });
-
-                        if (imageResponse.ok) {
-                            if (Platform.OS === 'web') {
+                        if (Platform.OS === 'web') {
+                            const imageResponse = await fetch(`${IMAGE_PATH}/${mediaFile.file_md5}`, {
+                                headers: { Authorization: `Bearer ${token}` }
+                            });
+                            if (imageResponse.ok) {
                                 const blob = await imageResponse.blob();
                                 const blobUrl = URL.createObjectURL(blob);
                                 loadedImages.push(blobUrl);
-                            } else {
-                                loadedImages.push(`${IMAGE_PATH}/${mediaFile.file_md5}`);
+                            }
+                        } else {
+                            // Download to a local file so FormData can read it during update
+                            const localDir = `${FileSystemLegacy.cacheDirectory}edit_images/`;
+                            const dirInfo = await FileSystemLegacy.getInfoAsync(localDir);
+                            if (!dirInfo.exists) {
+                                await FileSystemLegacy.makeDirectoryAsync(localDir, { intermediates: true });
+                            }
+                            const localPath = `${localDir}${mediaFile.file_md5}.jpg`;
+                            const dl = await FileSystemLegacy.downloadAsync(
+                                `${IMAGE_PATH}/${mediaFile.file_md5}`,
+                                localPath,
+                                { headers: { Authorization: `Bearer ${token}` } }
+                            );
+                            if (dl.status === 200) {
+                                loadedImages.push(dl.uri);
                             }
                         }
                     } catch (error) {
@@ -377,8 +389,14 @@ export default function Upload() {
                     ) : (
                         <>
                             <View style={screenStyles.addButtonContainer}>
-                                <ImageViewer selectedImages={selectedImages} onRemoveImage={removeImage} onPickImages={pickImageAsync} />
+                                <ImageViewer
+                                    selectedImages={selectedImages}
+                                    onRemoveImage={removeImage}
+                                    onPickImages={pickImageAsync}
+                                    imageHeaders={token ? { Authorization: `Bearer ${token}` } : undefined}
+                                />
                             </View>
+
 
                             <View style={screenStyles.inputContainer}>
                                 <Text style={screenStyles.label}>Date</Text>

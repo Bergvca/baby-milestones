@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import * as FileSystemLegacy from 'expo-file-system/legacy';
@@ -16,7 +16,7 @@ interface AuthenticatedImageProps {
   /**
    * Native only:
    * If provided, we will "load from cache" by reading this file if it exists.
-   * If NOT provided, we will NOT use a filesystem cache and will render directly from `uri`.
+   * If NOT provided, we may still auto-cache when headers are required.
    */
   cacheFilePath?: string;
 }
@@ -31,8 +31,10 @@ async function ensureDirForFile(filePath: string) {
   }
 }
 
-
-
+function stripQuery(u: string) {
+  const q = u.indexOf('?');
+  return q >= 0 ? u.slice(0, q) : u;
+}
 
 export async function deleteCachedImageFile(filePath: string) {
   try {
@@ -54,6 +56,13 @@ export default function AuthenticatedImage({
   cacheFilePath,
 }: AuthenticatedImageProps) {
   const [displayUri, setDisplayUri] = useState<string | null>(null);
+
+  // Important: include header VALUES so token changes trigger a re-run.
+  const headersSig = useMemo(() => {
+    if (!headers) return '';
+    const entries = Object.entries(headers).sort(([a], [b]) => a.localeCompare(b));
+    return JSON.stringify(entries);
+  }, [headers]);
 
   useEffect(() => {
     let cancelled = false;
@@ -84,39 +93,34 @@ export default function AuthenticatedImage({
       }
 
       // Native:
-      // When no explicit cacheFilePath is provided but we have auth headers,
-      // auto-generate a cache path so we can download with credentials.
-      if (!cacheFilePath) {
-        if (headers && Object.keys(headers).length > 0) {
-          const hash = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.MD5, uri);
-          const autoCachePath = `${FileSystemLegacy.cacheDirectory}authenticated_images/${hash}.jpg`;
-          await ensureDirForFile(autoCachePath);
+      const hasAuthHeaders = !!(headers && Object.keys(headers).length > 0);
 
-          const info = await FileSystemLegacy.getInfoAsync(autoCachePath);
-          if (info.exists) {
-            setSafe(autoCachePath);
-            return;
-          }
-
-          const dl = await FileSystemLegacy.downloadAsync(uri, autoCachePath, { headers });
-          if (dl.status !== 200) throw new Error(`Download failed: ${dl.status}`);
-          setSafe(dl.uri);
-          return;
-        }
-
+      // If we don't need auth, just render remote.
+      if (!hasAuthHeaders) {
         setSafe(uri);
         return;
       }
 
-      await ensureDirForFile(cacheFilePath);
+      // We DO need auth. RN/ExpoImage can't attach headers to a remote request reliably,
+      // so we download to a local file and render that.
+      const baseUri = stripQuery(uri);
 
-      const info = await FileSystemLegacy.getInfoAsync(cacheFilePath);
+      const targetPath =
+        cacheFilePath ??
+        `${FileSystemLegacy.cacheDirectory}authenticated_images/${await Crypto.digestStringAsync(
+          Crypto.CryptoDigestAlgorithm.MD5,
+          baseUri
+        )}.img`;
+
+      await ensureDirForFile(targetPath);
+
+      const info = await FileSystemLegacy.getInfoAsync(targetPath);
       if (info.exists) {
-        setSafe(cacheFilePath);
+        setSafe(targetPath);
         return;
       }
 
-      const dl = await FileSystemLegacy.downloadAsync(uri, cacheFilePath, headers ? { headers } : undefined);
+      const dl = await FileSystemLegacy.downloadAsync(baseUri, targetPath, { headers });
       if (dl.status !== 200) throw new Error(`Download failed: ${dl.status}`);
       setSafe(dl.uri);
     };
@@ -132,14 +136,13 @@ export default function AuthenticatedImage({
         URL.revokeObjectURL(displayUri);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uri, cacheFilePath, JSON.stringify(Object.keys(headers ?? {}).sort())]);
+  }, [uri, cacheFilePath, headersSig]);
 
   if (!displayUri) return null;
 
   return (
     <ExpoImage
-      source={{ uri: displayUri, cacheKey: uri }}
+      source={{ uri: displayUri }}
       style={style}
       contentFit={contentFit}
       transition={transition}

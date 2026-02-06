@@ -32,7 +32,7 @@ export default function PostMenu({ postId, token, onEdit, onDelete }: PostMenuPr
     const handleEdit = () => {
         setIsVisible(false);
         // Navigate to upload page with post data
-        router.replace({
+        router.navigate({
             pathname: '/(tabs)/upload',
             params: {
                 editMode: 'true',
