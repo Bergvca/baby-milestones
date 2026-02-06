@@ -77,6 +77,12 @@ export default function AuthenticatedImage({
         return;
       }
 
+      // FIRST: Check if URI is already a local file - use it directly
+      if (uri.startsWith('file://') || uri.startsWith('content://') || uri.startsWith('ph://')) {
+        setSafe(uri);
+        return;
+      }
+
       // Web:
       if (Platform.OS === 'web') {
         if (headers && Object.keys(headers).length > 0) {
