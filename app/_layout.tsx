@@ -18,7 +18,7 @@ function RootLayoutNav() {
     if (loading) return; // Don't navigate while loading
 
     const inAuthGroup = segments[0] === '(tabs)' || segments[0] === 'profile' || segments[0] === 'add-family'
-        || segments[0] === 'add-child';
+        || segments[0] === 'add-child' || segments[0] === 'post-detail';
 
     if (user && !inAuthGroup) {
       // User is signed in but not in auth group, redirect to tabs
@@ -52,8 +52,10 @@ function RootLayoutNav() {
             headerBackTitle: 'Back'
         }}
     />
-
-
+    <Stack.Screen
+        name="post-detail"
+        options={{ headerShown: false }}
+    />
 
     </Stack>
   );

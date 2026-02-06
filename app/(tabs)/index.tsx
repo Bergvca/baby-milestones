@@ -1,12 +1,12 @@
 
 import React, {useCallback, useEffect, useState} from 'react';
-import {ActivityIndicator, FlatList, Text, View} from 'react-native';
+import {ActivityIndicator, FlatList, Pressable, Text, View} from 'react-native';
 import {getAuth, onAuthStateChanged} from 'firebase/auth';
 import {POSTS_PATH} from "@/app/constants/api";
 import Post from '@/components/Post';
 import {Colors} from "@/components/colors";
 import {screenStyles} from "@/components/screenStyles";
-import {useFocusEffect} from "expo-router";
+import {router, useFocusEffect} from "expo-router";
 import {fetchJsonWithAuth} from "@/utils/utils";
 
 type MediaFile = {
@@ -138,7 +138,20 @@ function IndexScreen() {
                 keyExtractor={keyExtractor}
                 contentContainerStyle={screenStyles.listContent}
                 renderItem={({ item }) => (
-                    <>
+                    <Pressable
+                        onPress={() => {
+                          router.push({
+                            pathname: '/post-detail',
+                            params: {
+                              postId: item.id,
+                              date: item.date,
+                              description: item.description,
+                              selectedChildrenIds: JSON.stringify(item.selected_children_ids),
+                              mediaFiles: JSON.stringify(item.media_files),
+                            },
+                          });
+                        }}
+                    >
                       <Post
                           id={item.id}
                           date={item.date}
@@ -154,8 +167,7 @@ function IndexScreen() {
 
                           }}
                       />
-
-                    </>
+                    </Pressable>
                 )}
             />
         )}
