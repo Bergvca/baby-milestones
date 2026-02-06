@@ -7,6 +7,7 @@ import alert from '@/components/Alert';
 import { CHILD_AVATAR_PATH, USER_AVATAR_PATH } from '@/app/constants/api';
 import { useAuth } from '@/app/context/AuthContext';
 import { add_image_to_form } from '@/components/UploadPostBinary';
+import { Image as ExpoImage } from 'expo-image';
 import AuthenticatedImage, { deleteCachedImageFile } from '@/components/AuthenticatedImage';
 import * as FileSystemLegacy from 'expo-file-system/legacy';
 
@@ -32,6 +33,7 @@ const ProfileAvatar = React.forwardRef<ProfileAvatarRef, ProfileAvatarProps>(
     const { user } = useAuth();
     const [uploading, setUploading] = useState(false);
     const [avatarUri, setAvatarUri] = useState<string | null>(null);
+    const [pendingLocalUri, setPendingLocalUri] = useState<string | null>(null);
     const [loadingAvatar, setLoadingAvatar] = useState(false);
     const [token, setToken] = useState<string | null>(null);
     const [refreshKey, setRefreshKey] = useState(0);
@@ -42,6 +44,8 @@ const ProfileAvatar = React.forwardRef<ProfileAvatarRef, ProfileAvatarProps>(
     };
 
     // Deterministic cache path (native only)
+    // refreshKey is included so that after an upload the path changes,
+    // preventing ExpoImage from serving its stale internal cache.
     const avatarCachePath = useMemo(() => {
       if (Platform.OS === 'web') return undefined;
       const base = FileSystemLegacy.cacheDirectory;
@@ -49,18 +53,18 @@ const ProfileAvatar = React.forwardRef<ProfileAvatarRef, ProfileAvatarProps>(
 
       if (isChild) {
         if (!childId) return undefined;
-        return `${base}avatars/child_${childId}.jpg`;
+        return `${base}avatars/child_${childId}_v${refreshKey}.jpg`;
       }
-      return `${base}avatars/user_${user.uid}.jpg`;
-    }, [user, isChild, childId]);
+      return `${base}avatars/user_${user.uid}_v${refreshKey}.jpg`;
+    }, [user, isChild, childId, refreshKey]);
 
     React.useImperativeHandle(ref, () => ({
       uploadAvatarForChild: async (childIdToUpload: number) => {
-        if (!avatarUri || !user) return false;
+        if (!pendingLocalUri || !user) return false;
         try {
           const userToken = await user.getIdToken();
           let form = new FormData();
-          form = await add_image_to_form(avatarUri, form);
+          form = await add_image_to_form(pendingLocalUri, form);
 
           const response = await fetch(`${CHILD_AVATAR_PATH}/${childIdToUpload}`, {
             method: 'POST',
@@ -70,9 +74,13 @@ const ProfileAvatar = React.forwardRef<ProfileAvatarRef, ProfileAvatarProps>(
 
           if (!response.ok) throw new Error(`Upload failed: ${response.status}`);
 
-          // delete deterministic cache file so next render re-downloads
+          // Clear ExpoImage cache for this avatar — needed because the component
+          // navigates away immediately, so the versioned cache path trick won't help.
+          await ExpoImage.clearMemoryCache();
+          await ExpoImage.clearDiskCache();
           if (avatarCachePath) await deleteCachedImageFile(avatarCachePath);
 
+          setPendingLocalUri(null);
           setRefreshKey((k) => k + 1);
           return true;
         } catch (error) {
@@ -80,7 +88,7 @@ const ProfileAvatar = React.forwardRef<ProfileAvatarRef, ProfileAvatarProps>(
           return false;
         }
       },
-      getAvatarUri: () => avatarUri,
+      getAvatarUri: () => pendingLocalUri,
     }));
 
     const fetchAvatar = async () => {
@@ -153,8 +161,9 @@ const ProfileAvatar = React.forwardRef<ProfileAvatarRef, ProfileAvatarProps>(
         return;
       }
 
-      if (isChild && !childId) {
+      if (isChild) {
         setAvatarUri(imageUri);
+        setPendingLocalUri(imageUri);
         onImageChange?.(imageUri);
         return;
       }
@@ -175,9 +184,10 @@ const ProfileAvatar = React.forwardRef<ProfileAvatarRef, ProfileAvatarProps>(
 
         if (!response.ok) throw new Error(`Upload failed: ${response.status}`);
 
-        // Delete deterministic cache file so everyone sees new bytes
+        // Delete deterministic cache file so next render re-downloads
         if (avatarCachePath) await deleteCachedImageFile(avatarCachePath);
 
+        setRefreshKey((k) => k + 1);
         onImageChange?.(imageUri);
       } catch (error) {
         console.error('Error uploading avatar:', error);
@@ -232,10 +242,11 @@ const ProfileAvatar = React.forwardRef<ProfileAvatarRef, ProfileAvatarProps>(
         >
           {avatarUri ? (
             <AuthenticatedImage
-              // refreshKey forces a re-run after upload (and after deletion)
-              uri={Platform.OS === 'web' ? avatarUri : `${avatarUri}${avatarUri.includes('?') ? '&' : '?'}rk=${refreshKey}`}
-              headers={headers}
-              cacheFilePath={avatarCachePath}
+              // key forces full re-mount so ExpoImage doesn't serve stale in-memory cache
+              key={refreshKey}
+              uri={Platform.OS === 'web' || avatarUri.startsWith('file:') ? avatarUri : `${avatarUri}${avatarUri.includes('?') ? '&' : '?'}rk=${refreshKey}`}
+              headers={avatarUri.startsWith('file:') ? undefined : headers}
+              cacheFilePath={avatarUri.startsWith('http') ? avatarCachePath : undefined}
               style={[
                 styles.avatarImage,
                 {

@@ -34,6 +34,17 @@ async function ensureDirForFile(filePath: string) {
 
 
 
+export async function deleteCachedImageFile(filePath: string) {
+  try {
+    const info = await FileSystemLegacy.getInfoAsync(filePath);
+    if (info.exists) {
+      await FileSystemLegacy.deleteAsync(filePath, { idempotent: true });
+    }
+  } catch (e) {
+    console.warn('Failed to delete cached image file:', e);
+  }
+}
+
 export default function AuthenticatedImage({
   uri,
   headers,
@@ -73,9 +84,26 @@ export default function AuthenticatedImage({
       }
 
       // Native:
-      // Only use filesystem cache when an explicit cacheFilePath is provided.
-      // Otherwise render directly from the remote URI (no file cache).
+      // When no explicit cacheFilePath is provided but we have auth headers,
+      // auto-generate a cache path so we can download with credentials.
       if (!cacheFilePath) {
+        if (headers && Object.keys(headers).length > 0) {
+          const hash = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.MD5, uri);
+          const autoCachePath = `${FileSystemLegacy.cacheDirectory}authenticated_images/${hash}.jpg`;
+          await ensureDirForFile(autoCachePath);
+
+          const info = await FileSystemLegacy.getInfoAsync(autoCachePath);
+          if (info.exists) {
+            setSafe(autoCachePath);
+            return;
+          }
+
+          const dl = await FileSystemLegacy.downloadAsync(uri, autoCachePath, { headers });
+          if (dl.status !== 200) throw new Error(`Download failed: ${dl.status}`);
+          setSafe(dl.uri);
+          return;
+        }
+
         setSafe(uri);
         return;
       }
@@ -111,7 +139,7 @@ export default function AuthenticatedImage({
 
   return (
     <ExpoImage
-      source={{ uri: displayUri }}
+      source={{ uri: displayUri, cacheKey: uri }}
       style={style}
       contentFit={contentFit}
       transition={transition}
