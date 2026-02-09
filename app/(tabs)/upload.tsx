@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {
     View,
     Alert,
@@ -107,8 +107,48 @@ export default function Upload() {
         });
     };
 
+    // Load images for editing from media file MD5 hashes
+    const loadImagesForEditing = async (mediaFiles: { file_md5: string }[], token: string) => {
+        const loadedImages: string[] = [];
+
+        for (const mediaFile of mediaFiles) {
+            try {
+                if (Platform.OS === 'web') {
+                    const imageResponse = await fetch(`${IMAGE_PATH}/${mediaFile.file_md5}`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    if (imageResponse.ok) {
+                        const blob = await imageResponse.blob();
+                        const blobUrl = URL.createObjectURL(blob);
+                        loadedImages.push(blobUrl);
+                    }
+                } else {
+                    // Download to a local file so FormData can read it during update
+                    const localDir = `${FileSystemLegacy.cacheDirectory}edit_images/`;
+                    const dirInfo = await FileSystemLegacy.getInfoAsync(localDir);
+                    if (!dirInfo.exists) {
+                        await FileSystemLegacy.makeDirectoryAsync(localDir, { intermediates: true });
+                    }
+                    const localPath = `${localDir}${mediaFile.file_md5}.jpg`;
+                    const dl = await FileSystemLegacy.downloadAsync(
+                        `${IMAGE_PATH}/${mediaFile.file_md5}`,
+                        localPath,
+                        { headers: { Authorization: `Bearer ${token}` } }
+                    );
+                    if (dl.status === 200) {
+                        loadedImages.push(dl.uri);
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading image:', error);
+            }
+        }
+
+        return loadedImages;
+    };
+
     // Load post data for editing
-    const loadPostForEditing = async (postId: string, token: string) => {
+    const loadPostForEditing = async (postId: string, token: string, paramMediaFiles?: { file_md5: string }[]) => {
         setLoadingPostData(true);
         try {
             // Fetch post details
@@ -134,43 +174,12 @@ export default function Upload() {
                  setSelectedChildrenIds(postData.selected_children_ids);
             }
 
-            // Load all images if available
-            if (postData.media_files && postData.media_files.length > 0) {
-                const loadedImages: string[] = [];
+            // Use media files from params (reliable), falling back to API response
+            const mediaFiles = paramMediaFiles ??
+                (postData.media_files && Array.isArray(postData.media_files) ? postData.media_files : []);
 
-                for (const mediaFile of postData.media_files) {
-                    try {
-                        if (Platform.OS === 'web') {
-                            const imageResponse = await fetch(`${IMAGE_PATH}/${mediaFile.file_md5}`, {
-                                headers: { Authorization: `Bearer ${token}` }
-                            });
-                            if (imageResponse.ok) {
-                                const blob = await imageResponse.blob();
-                                const blobUrl = URL.createObjectURL(blob);
-                                loadedImages.push(blobUrl);
-                            }
-                        } else {
-                            // Download to a local file so FormData can read it during update
-                            const localDir = `${FileSystemLegacy.cacheDirectory}edit_images/`;
-                            const dirInfo = await FileSystemLegacy.getInfoAsync(localDir);
-                            if (!dirInfo.exists) {
-                                await FileSystemLegacy.makeDirectoryAsync(localDir, { intermediates: true });
-                            }
-                            const localPath = `${localDir}${mediaFile.file_md5}.jpg`;
-                            const dl = await FileSystemLegacy.downloadAsync(
-                                `${IMAGE_PATH}/${mediaFile.file_md5}`,
-                                localPath,
-                                { headers: { Authorization: `Bearer ${token}` } }
-                            );
-                            if (dl.status === 200) {
-                                loadedImages.push(dl.uri);
-                            }
-                        }
-                    } catch (error) {
-                        console.error('Error loading image:', error);
-                    }
-                }
-
+            if (mediaFiles.length > 0) {
+                const loadedImages = await loadImagesForEditing(mediaFiles, token);
                 setSelectedImages(loadedImages);
             }
         } catch (error) {
@@ -203,9 +212,16 @@ export default function Upload() {
         return unsubscribe;
     }, []);
 
+    // Guard ref: when we clear edit params after consuming them,
+    // prevent the else-if branch from resetting the form
+    const isSettingUpEdit = useRef(false);
+
     useFocusEffect(
         useCallback(() => {
-            resetFormState();
+            // Reset form when leaving the upload screen
+            return () => {
+                resetFormState();
+            };
         }, [])
     );
 
@@ -221,49 +237,41 @@ export default function Upload() {
     };
 
     // Handle edit mode setup
-    // Update the edit mode useEffect to handle new edits
     useEffect(() => {
         const editMode = params.editMode;
         const postId = params.postId;
 
         if (editMode === 'true' && postId && token) {
-            // Check if we're switching to a different post
-            if (editingPostId && editingPostId !== postId) {
-                // Reset state before loading new post
-                resetFormState();
-            }
-
-            // Only proceed if not already editing this specific post
             if (editingPostId !== postId) {
+                isSettingUpEdit.current = true;
                 setIsEditMode(true);
                 setEditingPostId(postId as string);
 
-                // Use params data if available
-                if (params.text) {
-                    setPostText(params.text as string);
-                }
-                if (params.date) {
-                    setSelectedDate(new Date(params.date as string));
+                // Parse media files from navigation params if available
+                let paramMediaFiles: { file_md5: string }[] | undefined;
+                if (params.mediaFiles) {
+                    try {
+                        paramMediaFiles = JSON.parse(params.mediaFiles as string);
+                    } catch (e) {
+                        console.warn('Failed to parse mediaFiles param:', e);
+                    }
                 }
 
-                // Load complete post data including image
-                loadPostForEditing(postId as string, token);
+                // Load complete post data including images
+                loadPostForEditing(postId as string, token, paramMediaFiles);
+
+                // Clear edit params so they don't re-trigger on next tab focus
+                router.setParams({ editMode: '', postId: '', mediaFiles: '' });
             }
         } else if (editMode !== 'true' && isEditMode) {
-            // If we're no longer in edit mode, reset the form
-            resetFormState();
-        }
-    }, [params.editMode, params.postId, params.text, params.date, token, editingPostId, isEditMode]);
-
-    // Also add a useFocusEffect to handle navigation changes
-    useFocusEffect(
-        useCallback(() => {
-            // Reset form when navigating to upload without edit params
-            if (!params.editMode && isEditMode) {
+            // When params are cleared (by us above), skip the reset
+            if (!isSettingUpEdit.current) {
                 resetFormState();
             }
-        }, [params.editMode, isEditMode])
-    );
+            isSettingUpEdit.current = false;
+        }
+    }, [params.editMode, params.postId, params.mediaFiles, token, editingPostId, isEditMode]);
+
 
 
     const pickImageAsync = async () => {
@@ -295,9 +303,9 @@ export default function Upload() {
         setUploading(false);
         const successMessage = isEditMode ? 'Milestone Updated!' : 'Milestone Created!';
 
-        // Show success message for 1 second, then navigate
+        // Show success message for 1 second, then reset and navigate
         setTimeout(() => {
-            setUploadSuccess(false);
+            resetFormState();
             router.push('/(tabs)'); // Navigate to home/index
         }, 1000);
     };

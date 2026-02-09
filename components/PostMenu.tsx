@@ -17,11 +17,12 @@ import {router} from "expo-router";
 interface PostMenuProps {
     postId: string | number;
     token: string;
+    mediaFiles?: { file_md5: string }[];
     onEdit: () => void;
     onDelete: () => void;
 }
 
-export default function PostMenu({ postId, token, onEdit, onDelete }: PostMenuProps) {
+export default function PostMenu({ postId, token, mediaFiles, onEdit, onDelete }: PostMenuProps) {
     const [isVisible, setIsVisible] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [showDeleteAlert, setShowDeleteAlert] = useState(false);
@@ -37,6 +38,7 @@ export default function PostMenu({ postId, token, onEdit, onDelete }: PostMenuPr
             params: {
                 editMode: 'true',
                 postId: postId,
+                mediaFiles: mediaFiles ? JSON.stringify(mediaFiles) : undefined,
             }
         });
         onEdit();

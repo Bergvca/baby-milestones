@@ -124,6 +124,7 @@ const Post: React.FC<PostProps> = ({
                 <PostMenu
                     postId={id}
                     token={token}
+                    mediaFiles={mediaFiles}
                     onEdit={onEdit}
                     onDelete={onDelete}
                 />

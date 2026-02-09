@@ -1,4 +1,4 @@
-whenimport React, {useEffect, useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {
     View,
     Text,
@@ -6,7 +6,6 @@ import {
     StyleSheet,
     TouchableOpacity,
     Platform,
-    useWindowDimensions,
     ActivityIndicator,
 } from 'react-native';
 import {router, useLocalSearchParams} from 'expo-router';
@@ -16,8 +15,10 @@ import {IMAGE_PATH} from '@/app/constants/api';
 import {fetchFullChildData, FamilyChild} from '@/utils/childUtils';
 import {formatDate} from '@/utils/utils';
 import {Colors} from '@/components/colors';
+import {screenStyles} from '@/components/screenStyles';
 import ProfileAvatar from '@/components/ProfileAvatar';
 import AuthenticatedImage from '@/components/AuthenticatedImage';
+import PostMenu from '@/components/PostMenu';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 interface MediaFile {
@@ -63,7 +64,6 @@ export default function PostDetailScreen() {
         mediaFiles: string;
     }>();
     const {user} = useAuth();
-    const {width: screenWidth} = useWindowDimensions();
     const insets = useSafeAreaInsets();
 
     const [token, setToken] = useState<string | null>(null);
@@ -140,17 +140,27 @@ export default function PostDetailScreen() {
         };
     }, [token]);
 
-    const imageWidth = screenWidth - 32;
     const authHeaders = token && Platform.OS !== 'web' ? {Authorization: `Bearer ${token}`} : undefined;
 
     return (
-        <View style={[styles.screen, {paddingTop: insets.top}]}>
-            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-                <MaterialIcons name="arrow-back" size={28} color={Colors.neutral.darkGray} />
-            </TouchableOpacity>
+        <View style={[screenStyles.container, {padding: 0, paddingTop: insets.top}]}>
+            <View style={styles.header}>
+                <TouchableOpacity style={screenStyles.backButton} onPress={() => router.back()}>
+                    <MaterialIcons name="arrow-back" size={28} color={Colors.neutral.darkGray} />
+                </TouchableOpacity>
+                {token && (
+                    <PostMenu
+                        postId={params.postId}
+                        token={token}
+                        mediaFiles={mediaFiles}
+                        onEdit={() => {}}
+                        onDelete={() => router.back()}
+                    />
+                )}
+            </View>
 
             <ScrollView
-                style={styles.scrollView}
+                style={screenStyles.scrollView}
                 contentContainerStyle={styles.scrollContent}
             >
                 {/* Date */}
@@ -180,18 +190,19 @@ export default function PostDetailScreen() {
 
                 {/* Description */}
                 {params.description ? (
-                    <Text style={styles.description}>{params.description}</Text>
+                    <Text style={[screenStyles.text, styles.description]}>{params.description}</Text>
                 ) : null}
 
                 {/* Images stacked full-width */}
                 {authenticatedImages.map((img) => (
-                    <AuthenticatedImage
-                        key={img.file_md5}
-                        uri={img.uri}
-                        headers={authHeaders}
-                        style={[styles.postImage, {width: imageWidth}]}
-                        contentFit="contain"
-                    />
+                    <View key={img.file_md5} style={styles.imageWrapper}>
+                        <AuthenticatedImage
+                            uri={img.uri}
+                            headers={authHeaders}
+                            style={styles.postImage}
+                            contentFit="cover"
+                        />
+                    </View>
                 ))}
             </ScrollView>
         </View>
@@ -199,17 +210,12 @@ export default function PostDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-    screen: {
-        flex: 1,
-        backgroundColor: Colors.neutral.offWhite,
-    },
-    backButton: {
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         paddingHorizontal: 16,
         paddingVertical: 12,
-        alignSelf: 'flex-start',
-    },
-    scrollView: {
-        flex: 1,
     },
     scrollContent: {
         padding: 16,
@@ -242,15 +248,18 @@ const styles = StyleSheet.create({
         color: Colors.neutral.lightGray,
     },
     description: {
-        fontSize: 16,
-        color: Colors.neutral.darkGray,
         lineHeight: 24,
         marginBottom: 20,
     },
-    postImage: {
-        borderRadius: 8,
+    imageWrapper: {
+        width: '100%',
+        borderRadius: 12,
+        overflow: 'hidden',
         marginBottom: 12,
         aspectRatio: 1,
-        minHeight: 250,
+    },
+    postImage: {
+        width: '100%',
+        height: '100%',
     },
 });

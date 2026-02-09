@@ -32,15 +32,13 @@ export default function ImageViewer({ selectedImages, onRemoveImage, onPickImage
 
     // Single image layout - full width with original aspect ratio
     if (selectedImages.length === 1) {
-        const imageWidth = screenWidth - 32;
-
         return (
             <View style={styles.centerWrapper}>
-                <View style={[styles.singleImageContainer, { width: imageWidth }]}>
+                <View style={styles.singleImageContainer}>
                     <AuthenticatedImage
                         uri={selectedImages[0]}
                         headers={imageHeaders}
-                        style={[styles.singleImage, { width: imageWidth }]}
+                        style={styles.singleImage}
                         contentFit="cover"
                         transition={200}
                     />
@@ -168,13 +166,13 @@ const styles = StyleSheet.create({
         alignItems: 'flex-start',
     },
     singleImageContainer: {
+        width: '100%',
         position: 'relative',
     },
     singleImage: {
+        width: '100%',
         borderRadius: 8,
         aspectRatio: 1,
-        minHeight: 250,
-        maxHeight: 500,
     },
     placeholder: {
         width: 300,
