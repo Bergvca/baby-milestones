@@ -77,14 +77,7 @@ export default function Children({ familyId, token, familyName, familyDescriptio
                     familyDescription = '';
                 }
 
-                let response = await createOrUpdateFamily(familyName, familyDescription, false, null, token);
-
-                if (!response.ok) {
-                    const errorText = await response.text().catch(() => '');
-                    throw new Error(`Failed to create family (${response.status}): ${errorText || response.statusText}`);
-                }
-
-                const createdFamily: CreateFamilyResponse = await response.json();
+                const createdFamily = await createOrUpdateFamily(familyName, familyDescription, false, null);
                 setFamilyID(createdFamily.id);
 
                 // Navigate to add-child with the newly created family ID

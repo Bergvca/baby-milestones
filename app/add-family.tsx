@@ -10,9 +10,10 @@ import {
     View,
 } from 'react-native';
 import {router, useFocusEffect, useLocalSearchParams} from 'expo-router';
-import {getAuth, onAuthStateChanged} from 'firebase/auth';
+import {useAuth} from '@/app/context/AuthContext';
 import {Colors} from '@/components/colors';
 import {FAMILY_PATH} from '@/app/constants/api';
+import {api} from '@/utils/apiClient';
 import CustomAlert from "@/components/CustomAlert";
 import {fetchJsonWithAuth} from "@/utils/utils";
 import Children from "@/components/Children";
@@ -59,6 +60,7 @@ export default function AddFamily() {
     const [refreshKey, setRefreshKey] = useState(0);
     const { width } = useWindowDimensions();
     const isSmallScreen = width < 640;
+    const {user, getToken} = useAuth();
 
     // Get params from navigation
     const params = useLocalSearchParams();
@@ -91,21 +93,12 @@ export default function AddFamily() {
 
 
     useEffect(() => {
-        const auth = getAuth();
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
-            try {
-                if (user) {
-                    const idToken = await user.getIdToken();
-                    setToken(idToken);
-                } else {
-                    setToken(null);
-                }
-            } catch {
-                setToken(null);
-            }
-        });
-        return unsubscribe;
-    }, []);
+        if (!user) {
+            setToken(null);
+            return;
+        }
+        getToken().then(setToken).catch(() => setToken(null));
+    }, [user, getToken]);
 
 
     const handleCreateOrUpdateFamily = async () => {
@@ -123,21 +116,11 @@ export default function AddFamily() {
         setLoading(true);
 
         try {
-            const auth = getAuth();
-            const user = auth.currentUser;
-
             if (!user) {
                 Alert.alert('Error', 'You must be logged in to create a family');
                 return;
             }
-            let response = await createOrUpdateFamily(familyName, description, isEditMode, familyID, token);
-
-            if (!response.ok) {
-                const errorText = await response.text().catch(() => '');
-                throw new Error(`Failed to create family (${response.status}): ${errorText || response.statusText}`);
-            }
-
-            const createdFamily: CreateFamilyResponse = await response.json();
+            await createOrUpdateFamily(familyName, description, isEditMode, familyID);
 
             router.push('/(tabs)/profile');
 
@@ -212,27 +195,11 @@ export default function AddFamily() {
         setLoading(true);
 
         try {
-            const auth = getAuth();
-            const user = auth.currentUser;
-
             if (!user) {
                 Alert.alert('Error', 'You must be logged in to create a family');
                 return;
             }
-            const response = await fetch(`${FAMILY_PATH}/${familyID}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                }
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text().catch(() => '');
-                throw new Error(`Failed to delete family (${response.status}): ${errorText || response.statusText}`);
-            }
-
+            await api.del<void>(`${FAMILY_PATH}/${familyID}`);
 
             router.push('/(tabs)/profile');
 

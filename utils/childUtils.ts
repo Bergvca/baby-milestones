@@ -1,6 +1,10 @@
+import { api, ApiError } from '@/utils/apiClient';
+import { CHILD_ALL, CHILD_PATH } from '@/app/constants/api';
+import type { Child } from '@/types/api';
 
-import {fetchJsonWithAuth} from "@/utils/utils";
-import {CHILD_PATH, CHILD_ALL} from "@/app/constants/api";
+export type { Child } from '@/types/api';
+// Back-compat alias for existing call sites.
+export type FamilyChild = Child;
 
 export interface CreateChildRequest {
     full_name: string;
@@ -11,19 +15,27 @@ export interface CreateChildRequest {
     family_id: number | null;
 }
 
-export async function fetchFullChildData(token: string, childID: number, signal?: AbortSignal): Promise<FamilyChild | null> {
+export async function fetchFullChildData(
+    _token: string,
+    childID: number,
+    signal?: AbortSignal,
+): Promise<Child | null> {
     try {
-        const data = await fetchJsonWithAuth<unknown>(`${CHILD_PATH}/${childID}`, token, signal);
+        const data = await api.get<unknown>(`${CHILD_PATH}/${childID}`, { signal });
         return isFullChildData(data) ? data : null;
     } catch (error) {
+        if (error instanceof ApiError && error.status === 404) return null;
         console.error('Failed to fetch full child data:', error);
         return null;
     }
 }
 
-export async function fetchAllChildren(token: string, signal?: AbortSignal): Promise<FamilyChild[]> {
+export async function fetchAllChildren(
+    _token: string,
+    signal?: AbortSignal,
+): Promise<Child[]> {
     try {
-        const data = await fetchJsonWithAuth<unknown>(CHILD_ALL, token, signal);
+        const data = await api.get<unknown>(CHILD_ALL, { signal });
         return isChildArray(data) ? data : [];
     } catch (error) {
         console.error('Failed to fetch all children:', error);
@@ -31,24 +43,10 @@ export async function fetchAllChildren(token: string, signal?: AbortSignal): Pro
     }
 }
 
-type MediaFile = {
-    file_md5: string;
-};
-
-export type FamilyChild = {
-    id: number;
-    full_name: string;
-    birthdate: string;
-    gender: string;
-    birth_length: number;
-    birth_weight: number;
-    media_file: MediaFile;
-}
-
-function isFullChildData(data: unknown): data is FamilyChild {
+function isFullChildData(data: unknown): data is Child {
     return typeof data === 'object' && data !== null && 'id' in data;
 }
 
-function isChildArray(data: unknown): data is FamilyChild[] {
+function isChildArray(data: unknown): data is Child[] {
     return Array.isArray(data);
 }

@@ -1,7 +1,7 @@
 
 import React, {useCallback, useEffect, useState} from 'react';
 import {ActivityIndicator, FlatList, Pressable, Text, View} from 'react-native';
-import {getAuth, onAuthStateChanged} from 'firebase/auth';
+import {useAuth} from '@/app/context/AuthContext';
 import {POSTS_PATH} from "@/app/constants/api";
 import Post from '@/components/Post';
 import {Colors} from "@/components/colors";
@@ -38,6 +38,7 @@ function IndexScreen() {
   const [postsLoading, setPostsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const {user, loading: authStateLoading, getToken} = useAuth();
 
   // Function to refresh posts on focus
   const refreshPosts = useCallback(async () => {
@@ -61,24 +62,17 @@ function IndexScreen() {
 
   // Watch auth state and get JWT
   useEffect(() => {
-    const auth = getAuth();
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      try {
-        if (user) {
-          const idToken = await user.getIdToken();
-          setToken(idToken);
-        } else {
-          setToken(null);
-        }
-      } catch {
-        setToken(null);
-      } finally {
-        setAuthLoading(false);
-      }
-    });
-
-    return unsubscribe;
-  }, []);
+    if (authStateLoading) return;
+    if (!user) {
+      setToken(null);
+      setAuthLoading(false);
+      return;
+    }
+    getToken()
+      .then((t) => setToken(t))
+      .catch(() => setToken(null))
+      .finally(() => setAuthLoading(false));
+  }, [user, authStateLoading, getToken]);
 
   // Fetch posts when we have a token or when refreshKey changes
   useEffect(() => {

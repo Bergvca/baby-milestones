@@ -12,6 +12,7 @@ import {router, useLocalSearchParams} from 'expo-router';
 import {MaterialIcons} from '@expo/vector-icons';
 import {useAuth} from '@/app/context/AuthContext';
 import {IMAGE_PATH} from '@/app/constants/api';
+import {api} from '@/utils/apiClient';
 import {fetchFullChildData, FamilyChild} from '@/utils/childUtils';
 import {formatDate} from '@/utils/utils';
 import {Colors} from '@/components/colors';
@@ -114,10 +115,7 @@ export default function PostDetailScreen() {
             if (Platform.OS === 'web') {
                 const imagePromises = mediaFiles.map(async (mediaFile) => {
                     try {
-                        const response = await fetch(`${IMAGE_PATH}/${mediaFile.file_md5}`, {
-                            headers: {Authorization: `Bearer ${token}`},
-                        });
-                        if (!response.ok) throw new Error(`Failed: ${response.status}`);
+                        const response = await api.raw(`${IMAGE_PATH}/${mediaFile.file_md5}`);
                         const blob = await response.blob();
                         return {file_md5: mediaFile.file_md5, uri: URL.createObjectURL(blob)};
                     } catch {

@@ -7,6 +7,7 @@ import alert from '@/components/Alert';
 import { CHILD_AVATAR_PATH, USER_AVATAR_PATH } from '@/app/constants/api';
 import { useAuth } from '@/app/context/AuthContext';
 import { add_image_to_form } from '@/components/UploadPostBinary';
+import { api, ApiError } from '@/utils/apiClient';
 import { Image as ExpoImage } from 'expo-image';
 import AuthenticatedImage, { deleteCachedImageFile } from '@/components/AuthenticatedImage';
 import * as FileSystemLegacy from 'expo-file-system/legacy';
@@ -30,7 +31,7 @@ const ProfileAvatar = React.forwardRef<ProfileAvatarRef, ProfileAvatarProps>(
     { size = 120, iconColor = Colors.accent.yellow, onImageChange, editable = false, isChild = false, childId },
     ref
   ) {
-    const { user } = useAuth();
+    const { user, getToken } = useAuth();
     const [uploading, setUploading] = useState(false);
     const [avatarUri, setAvatarUri] = useState<string | null>(null);
     const [pendingLocalUri, setPendingLocalUri] = useState<string | null>(null);
@@ -62,17 +63,10 @@ const ProfileAvatar = React.forwardRef<ProfileAvatarRef, ProfileAvatarProps>(
       uploadAvatarForChild: async (childIdToUpload: number) => {
         if (!pendingLocalUri || !user) return false;
         try {
-          const userToken = await user.getIdToken();
           let form = new FormData();
           form = await add_image_to_form(pendingLocalUri, form);
 
-          const response = await fetch(`${CHILD_AVATAR_PATH}/${childIdToUpload}`, {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${userToken}` },
-            body: form,
-          });
-
-          if (!response.ok) throw new Error(`Upload failed: ${response.status}`);
+          await api.upload<unknown>(`${CHILD_AVATAR_PATH}/${childIdToUpload}`, form);
 
           // Clear ExpoImage cache for this avatar — needed because the component
           // navigates away immediately, so the versioned cache path trick won't help.
@@ -99,22 +93,16 @@ const ProfileAvatar = React.forwardRef<ProfileAvatarRef, ProfileAvatarProps>(
 
       setLoadingAvatar(true);
       try {
-        const userToken = await user.getIdToken();
+        const userToken = await getToken();
+        if (!userToken) {
+          setAvatarUri(null);
+          return;
+        }
         setToken(userToken);
 
         // We only use this request to check existence / 404.
         // Actual image bytes are loaded by AuthenticatedImage into the deterministic path.
-        const response = await fetch(avatarApiPath(), {
-          headers: { Authorization: `Bearer ${userToken}` },
-        });
-
-        if (!response.ok) {
-          if (response.status === 404) {
-            setAvatarUri(null);
-            return;
-          }
-          throw new Error(`Failed to fetch avatar: ${response.status}`);
-        }
+        const response = await api.raw(avatarApiPath());
 
         if (Platform.OS === 'web') {
           const blob = await response.blob();
@@ -124,8 +112,12 @@ const ProfileAvatar = React.forwardRef<ProfileAvatarRef, ProfileAvatarProps>(
           setAvatarUri(avatarApiPath());
         }
       } catch (error) {
-        console.error('Error fetching avatar:', error);
-        setAvatarUri(null);
+        if (error instanceof ApiError && error.status === 404) {
+          setAvatarUri(null);
+        } else {
+          console.error('Error fetching avatar:', error);
+          setAvatarUri(null);
+        }
       } finally {
         setLoadingAvatar(false);
       }
@@ -170,19 +162,17 @@ const ProfileAvatar = React.forwardRef<ProfileAvatarRef, ProfileAvatarProps>(
 
       setUploading(true);
       try {
-        const userToken = await user.getIdToken();
+        const userToken = await getToken();
+        if (!userToken) {
+          alert('Error', 'No auth token available', []);
+          return;
+        }
         setToken(userToken);
 
         let form = new FormData();
         form = await add_image_to_form(imageUri, form);
 
-        const response = await fetch(avatarApiPath(), {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${userToken}` },
-          body: form,
-        });
-
-        if (!response.ok) throw new Error(`Upload failed: ${response.status}`);
+        await api.upload<unknown>(avatarApiPath(), form);
 
         // Delete deterministic cache file so next render re-downloads
         if (avatarCachePath) await deleteCachedImageFile(avatarCachePath);

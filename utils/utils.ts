@@ -1,19 +1,13 @@
-export async function fetchJsonWithAuth<T>(url: string, token: string, signal?: AbortSignal): Promise<T> {
-    const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: 'application/json',
-        },
-        signal,
-    });
+import { api } from '@/utils/apiClient';
 
-    if (!response.ok) {
-        const text = await response.text().catch(() => '');
-        throw new Error(`Request failed (${response.status}): ${text || response.statusText}`);
-    }
-
-    return (await response.json()) as T;
+// Thin back-compat wrapper around api.get; the `token` argument is ignored
+// because the api client fetches the current token via the auth provider.
+export async function fetchJsonWithAuth<T>(
+    url: string,
+    _token: string,
+    signal?: AbortSignal,
+): Promise<T> {
+    return api.get<T>(url, { signal });
 }
 
 export const formatDate = (dateString: string) => {

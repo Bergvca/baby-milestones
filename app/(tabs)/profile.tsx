@@ -5,33 +5,16 @@ import { router } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import  alert from '@/components/Alert';
-import {getAuth} from "firebase/auth";
 import {USER_PATH} from "@/app/constants/api";
+import {api} from "@/utils/apiClient";
+import type {Family, UserProfile} from "@/types/api";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import {Colors} from "@/components/colors";
 import { screenStyles } from '@/components/screenStyles';
 
 
-type Family = {
-    name: string;
-    description: string;
-    id: number;
-    created_at: string;
-};
-
-type UserProfile = {
-    email: string;
-    full_name: string;
-    firebase_uid: string;
-    profile_picture_id: number;
-    id: number;
-    families: Family[];
-};
-
-
-
 export default function Profile() {
-    const { logout } = useAuth();
+    const { logout, user } = useAuth();
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -43,27 +26,11 @@ export default function Profile() {
             setLoading(true);
             setError(null);
 
-            const auth = getAuth();
-            const user = auth.currentUser;
-
             if (!user) {
                 throw new Error('No authenticated user');
             }
 
-            const token = await user.getIdToken();
-            const response = await fetch(`${USER_PATH}/${user.uid}`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error(`Failed to fetch user profile: ${response.status}`);
-            }
-
-            const userData = await response.json();
+            const userData = await api.get<UserProfile>(`${USER_PATH}/${user.uid}`);
             setUserProfile(userData);
         } catch (err) {
             console.error('Error fetching user profile:', err);

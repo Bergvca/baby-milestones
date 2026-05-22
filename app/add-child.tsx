@@ -10,7 +10,7 @@ import {
     View,
 } from 'react-native';
 import {router, useLocalSearchParams} from 'expo-router';
-import {getAuth, onAuthStateChanged} from 'firebase/auth';
+import {useAuth} from '@/app/context/AuthContext';
 import {Colors} from '@/components/colors';
 import {CHILD_PATH} from '@/app/constants/api';
 import CustomAlert from "@/components/CustomAlert";
@@ -19,6 +19,7 @@ import {DatePicker} from "@/components/DatePicker";
 import type {ProfileAvatarRef} from '@/components/ProfileAvatar';
 import ProfileAvatar from "@/components/ProfileAvatar";
 import {CreateChildRequest, fetchFullChildData} from "@/utils/childUtils";
+import {api} from "@/utils/apiClient";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
 
@@ -37,6 +38,7 @@ export default function AddChild() {
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [dataLoading, setDataLoading] = useState(false);
     const avatarRef = useRef<ProfileAvatarRef>(null);
+    const {user, getToken} = useAuth();
 
 
     // Get params from navigation
@@ -61,21 +63,12 @@ export default function AddChild() {
     };
 
     useEffect(() => {
-        const auth = getAuth();
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
-            try {
-                if (user) {
-                    const idToken = await user.getIdToken();
-                    setToken(idToken);
-                } else {
-                    setToken(null);
-                }
-            } catch {
-                setToken(null);
-            }
-        });
-        return unsubscribe;
-    }, []);
+        if (!user) {
+            setToken(null);
+            return;
+        }
+        getToken().then(setToken).catch(() => setToken(null));
+    }, [user, getToken]);
 
     useEffect(() => {
         if (params.editMode === 'true') {
@@ -124,9 +117,6 @@ export default function AddChild() {
         setLoading(true);
 
         try {
-            const auth = getAuth();
-            const user = auth.currentUser;
-
             if (!user) {
                 Alert.alert('Error', 'You must be logged in to create a family');
                 return;
@@ -140,34 +130,9 @@ export default function AddChild() {
                 gender: gender.trim(),
                 family_id: familyId
             };
-            let response: Response;
-            if (isEditMode) {
-                response = await fetch(`${CHILD_PATH}/${childID}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                    },
-                    body: JSON.stringify(childData),
-                });
-            } else {
-                response = await fetch(CHILD_PATH, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                    },
-                    body: JSON.stringify(childData),
-                });
-            }
-            if (!response.ok) {
-                const errorText = await response.text().catch(() => '');
-                throw new Error(`Failed to create child (${response.status}): ${errorText || response.statusText}`);
-            }
-
-            const newChildData = await response.json();
+            const newChildData = isEditMode
+                ? await api.put<{ id: number }>(`${CHILD_PATH}/${childID}`, childData)
+                : await api.post<{ id: number }>(CHILD_PATH, childData);
             const newChildId = newChildData.id;
             console.log('newChildId', newChildId);
             // 2. Upload avatar if one was selected
@@ -243,27 +208,11 @@ export default function AddChild() {
         setLoading(true);
 
         try {
-            const auth = getAuth();
-            const user = auth.currentUser;
-
             if (!user) {
                 Alert.alert('Error', 'You must be logged in to create a family');
                 return;
             }
-            const response = await fetch(`${CHILD_PATH}/${childID}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                }
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text().catch(() => '');
-                throw new Error(`Failed to delete family (${response.status}): ${errorText || response.statusText}`);
-            }
-
+            await api.del<void>(`${CHILD_PATH}/${childID}`);
 
             router.back();
 

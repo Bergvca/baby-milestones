@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Colors } from './colors';
 import { POSTS_PATH } from '@/app/constants/api';
+import { api } from '@/utils/apiClient';
 import CustomAlert from './CustomAlert';
 import {router} from "expo-router";
 
@@ -46,18 +47,7 @@ export default function PostMenu({ postId, token, mediaFiles, onEdit, onDelete }
 
 
     const deletePost = async (postId: string | number): Promise<void> => {
-        const response = await fetch(`${POSTS_PATH}/${postId}`, {
-            method: 'DELETE',
-            headers: {
-                Authorization: `Bearer ${token}`,
-                Accept: 'application/json',
-            },
-        });
-
-        if (!response.ok) {
-            const text = await response.text().catch(() => '');
-            throw new Error(`Delete failed (${response.status}): ${text || response.statusText}`);
-        }
+        await api.del<void>(`${POSTS_PATH}/${postId}`);
     };
 
     const handleDelete = () => {

@@ -11,12 +11,13 @@ import {
     useWindowDimensions
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { useAuth } from '@/app/context/AuthContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import ImageViewer from '@/components/ImageViewer';
 import PostTextField from '@/components/PostTextField';
 import Button from '@/components/Button';
 import {IMAGE_PATH, POSTS_PATH} from '@/app/constants/api';
+import { api } from '@/utils/apiClient';
 import {uploadPostBinary, updatePostById} from "@/components/UploadPostBinary";
 import { screenStyles } from '@/components/screenStyles';
 import {Colors} from "@/components/colors";
@@ -45,6 +46,7 @@ export default function Upload() {
     const [children, setChildren] = useState<FamilyChild[]>([]);
     const [selectedChildrenIds, setSelectedChildrenIds] = useState<number[]>([]);
     const [loadingChildren, setLoadingChildren] = useState(false);
+    const {user, getToken} = useAuth();
     const { width } = useWindowDimensions();
     const isSmallScreen = width < 640;
 
@@ -114,14 +116,10 @@ export default function Upload() {
         for (const mediaFile of mediaFiles) {
             try {
                 if (Platform.OS === 'web') {
-                    const imageResponse = await fetch(`${IMAGE_PATH}/${mediaFile.file_md5}`, {
-                        headers: { Authorization: `Bearer ${token}` }
-                    });
-                    if (imageResponse.ok) {
-                        const blob = await imageResponse.blob();
-                        const blobUrl = URL.createObjectURL(blob);
-                        loadedImages.push(blobUrl);
-                    }
+                    const imageResponse = await api.raw(`${IMAGE_PATH}/${mediaFile.file_md5}`);
+                    const blob = await imageResponse.blob();
+                    const blobUrl = URL.createObjectURL(blob);
+                    loadedImages.push(blobUrl);
                 } else {
                     // Download to a local file so FormData can read it during update
                     const localDir = `${FileSystemLegacy.cacheDirectory}edit_images/`;
@@ -152,18 +150,12 @@ export default function Upload() {
         setLoadingPostData(true);
         try {
             // Fetch post details
-            const response = await fetch(`${POSTS_PATH}/${postId}`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    Accept: 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to load post data');
-            }
-
-            const postData = await response.json();
+            const postData = await api.get<{
+                description?: string;
+                date: string;
+                selected_children_ids?: number[];
+                media_files?: { file_md5: string }[];
+            }>(`${POSTS_PATH}/${postId}`);
 
             // Set the form data
             setPostText(postData.description || '');
@@ -192,25 +184,23 @@ export default function Upload() {
 
 
     useEffect(() => {
-        const auth = getAuth();
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
-            try {
-                if (user) {
-                    const idToken = await user.getIdToken();
-                    setToken(idToken);
-                    // Load children when token is available
+        if (!user) {
+            setToken(null);
+            setChildren([]);
+            return;
+        }
+        getToken()
+            .then(async (idToken) => {
+                setToken(idToken);
+                if (idToken) {
                     await loadChildren(idToken);
-                } else {
-                    setToken(null);
-                    setChildren([]);
                 }
-            } catch {
+            })
+            .catch(() => {
                 setToken(null);
                 setChildren([]);
-            }
-        });
-        return unsubscribe;
-    }, []);
+            });
+    }, [user, getToken]);
 
     // Guard ref: when we clear edit params after consuming them,
     // prevent the else-if branch from resetting the form
@@ -326,11 +316,10 @@ export default function Upload() {
 
             if (isEditMode && editingPostId) {
                 // Update existing post with multiple images
-                await updatePostById(editingPostId, token, postText, selectedDate, selectedImages, selectedChildrenIds);
+                await updatePostById(editingPostId, postText, selectedDate, selectedImages, selectedChildrenIds);
             } else {
                 // Create new post with multiple images
                 await uploadPostBinary({
-                    token,
                     imageUris: selectedImages,
                     text: postText,
                     date: selectedDate,
