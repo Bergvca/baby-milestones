@@ -115,7 +115,7 @@ export default function AuthenticatedImage({
         cacheFilePath ??
         `${FileSystemLegacy.cacheDirectory}authenticated_images/${await Crypto.digestStringAsync(
           Crypto.CryptoDigestAlgorithm.MD5,
-          baseUri
+          baseUri,
         )}.img`;
 
       await ensureDirForFile(targetPath);
@@ -142,6 +142,7 @@ export default function AuthenticatedImage({
         URL.revokeObjectURL(displayUri);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uri, cacheFilePath, headersSig]);
 
   if (!displayUri) return null;

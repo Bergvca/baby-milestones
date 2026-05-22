@@ -1,274 +1,271 @@
-import React, {useEffect, useState} from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-    View,
-    Text,
-    ScrollView,
-    StyleSheet,
-    TouchableOpacity,
-    Platform,
-    ActivityIndicator,
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  Platform,
+  ActivityIndicator,
 } from 'react-native';
-import {router, useLocalSearchParams} from 'expo-router';
-import {MaterialIcons} from '@expo/vector-icons';
-import {useAuth} from '@/app/context/AuthContext';
-import {IMAGE_PATH} from '@/app/constants/api';
-import {api} from '@/utils/apiClient';
-import {fetchFullChildData, FamilyChild} from '@/utils/childUtils';
-import {formatDate} from '@/utils/utils';
-import {Colors} from '@/components/colors';
-import {screenStyles} from '@/components/screenStyles';
+import { router, useLocalSearchParams } from 'expo-router';
+import { MaterialIcons } from '@expo/vector-icons';
+import { useAuth } from '@/app/context/AuthContext';
+import { IMAGE_PATH } from '@/app/constants/api';
+import { api } from '@/utils/apiClient';
+import { fetchFullChildData, FamilyChild } from '@/utils/childUtils';
+import { formatDate } from '@/utils/utils';
+import { Colors } from '@/components/colors';
+import { screenStyles } from '@/components/screenStyles';
 import ProfileAvatar from '@/components/ProfileAvatar';
 import AuthenticatedImage from '@/components/AuthenticatedImage';
 import PostMenu from '@/components/PostMenu';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface MediaFile {
-    file_md5: string;
+  file_md5: string;
 }
 
 function calculateAgeAtDate(birthdate: string, postDate: string): string {
-    const birth = new Date(birthdate);
-    const post = new Date(postDate);
+  const birth = new Date(birthdate);
+  const post = new Date(postDate);
 
-    let years = post.getFullYear() - birth.getFullYear();
-    let months = post.getMonth() - birth.getMonth();
+  let years = post.getFullYear() - birth.getFullYear();
+  let months = post.getMonth() - birth.getMonth();
 
+  if (months < 0) {
+    years--;
+    months += 12;
+  }
+
+  // Adjust if day hasn't been reached yet in the month
+  if (post.getDate() < birth.getDate()) {
+    months--;
     if (months < 0) {
-        years--;
-        months += 12;
+      years--;
+      months += 12;
     }
+  }
 
-    // Adjust if day hasn't been reached yet in the month
-    if (post.getDate() < birth.getDate()) {
-        months--;
-        if (months < 0) {
-            years--;
-            months += 12;
-        }
-    }
+  if (years < 0) return '';
 
-    if (years < 0) return '';
+  const parts: string[] = [];
+  if (years > 0) parts.push(`${years} year${years !== 1 ? 's' : ''}`);
+  if (months > 0) parts.push(`${months} month${months !== 1 ? 's' : ''}`);
 
-    const parts: string[] = [];
-    if (years > 0) parts.push(`${years} year${years !== 1 ? 's' : ''}`);
-    if (months > 0) parts.push(`${months} month${months !== 1 ? 's' : ''}`);
+  if (parts.length > 0) return parts.join(', ');
 
-    if (parts.length > 0) return parts.join(', ');
-
-    const diffMs = post.getTime() - birth.getTime();
-    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    return `${days} day${days !== 1 ? 's' : ''}`;
+  const diffMs = post.getTime() - birth.getTime();
+  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  return `${days} day${days !== 1 ? 's' : ''}`;
 }
 
 export default function PostDetailScreen() {
-    const params = useLocalSearchParams<{
-        postId: string;
-        date: string;
-        description: string;
-        selectedChildrenIds: string;
-        mediaFiles: string;
-    }>();
-    const {user, getToken} = useAuth();
-    const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{
+    postId: string;
+    date: string;
+    description: string;
+    selectedChildrenIds: string;
+    mediaFiles: string;
+  }>();
+  const { user, getToken } = useAuth();
+  const insets = useSafeAreaInsets();
 
-    const [token, setToken] = useState<string | null>(null);
-    const [children, setChildren] = useState<FamilyChild[]>([]);
-    const [loadingChildren, setLoadingChildren] = useState(true);
-    const [authenticatedImages, setAuthenticatedImages] = useState<{file_md5: string; uri: string}[]>([]);
+  const [token, setToken] = useState<string | null>(null);
+  const [children, setChildren] = useState<FamilyChild[]>([]);
+  const [loadingChildren, setLoadingChildren] = useState(true);
+  const [authenticatedImages, setAuthenticatedImages] = useState<
+    { file_md5: string; uri: string }[]
+  >([]);
 
-    const selectedChildrenIds: number[] = params.selectedChildrenIds
-        ? JSON.parse(params.selectedChildrenIds)
-        : [];
-    const mediaFiles: MediaFile[] = params.mediaFiles
-        ? JSON.parse(params.mediaFiles)
-        : [];
+  const selectedChildrenIds: number[] = params.selectedChildrenIds
+    ? JSON.parse(params.selectedChildrenIds)
+    : [];
+  const mediaFiles: MediaFile[] = params.mediaFiles ? JSON.parse(params.mediaFiles) : [];
 
-    useEffect(() => {
-        if (!user) return;
-        getToken().then(setToken);
-    }, [user, getToken]);
+  useEffect(() => {
+    if (!user) return;
+    getToken().then(setToken);
+  }, [user, getToken]);
 
-    // Fetch child data
-    useEffect(() => {
-        if (!token || selectedChildrenIds.length === 0) {
-            setLoadingChildren(false);
-            return;
-        }
+  // Fetch child data
+  useEffect(() => {
+    if (!token || selectedChildrenIds.length === 0) {
+      setLoadingChildren(false);
+      return;
+    }
 
-        const fetchChildren = async () => {
-            setLoadingChildren(true);
-            const results = await Promise.all(
-                selectedChildrenIds.map((id) => fetchFullChildData(token, id))
-            );
-            setChildren(results.filter((c): c is FamilyChild => c !== null));
-            setLoadingChildren(false);
-        };
+    const fetchChildren = async () => {
+      setLoadingChildren(true);
+      const results = await Promise.all(
+        selectedChildrenIds.map((id) => fetchFullChildData(token, id)),
+      );
+      setChildren(results.filter((c): c is FamilyChild => c !== null));
+      setLoadingChildren(false);
+    };
 
-        fetchChildren();
-    }, [token]);
+    fetchChildren();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
-    // Fetch images (same pattern as Post.tsx)
-    useEffect(() => {
-        if (!token || mediaFiles.length === 0) return;
+  // Fetch images (same pattern as Post.tsx)
+  useEffect(() => {
+    if (!token || mediaFiles.length === 0) return;
 
-        const fetchImages = async () => {
-            if (Platform.OS === 'web') {
-                const imagePromises = mediaFiles.map(async (mediaFile) => {
-                    try {
-                        const response = await api.raw(`${IMAGE_PATH}/${mediaFile.file_md5}`);
-                        const blob = await response.blob();
-                        return {file_md5: mediaFile.file_md5, uri: URL.createObjectURL(blob)};
-                    } catch {
-                        return null;
-                    }
-                });
-                const results = await Promise.all(imagePromises);
-                setAuthenticatedImages(results.filter((img): img is {file_md5: string; uri: string} => img !== null));
-            } else {
-                setAuthenticatedImages(
-                    mediaFiles.map((mf) => ({file_md5: mf.file_md5, uri: `${IMAGE_PATH}/${mf.file_md5}`}))
-                );
-            }
-        };
+    const fetchImages = async () => {
+      if (Platform.OS === 'web') {
+        const imagePromises = mediaFiles.map(async (mediaFile) => {
+          try {
+            const response = await api.raw(`${IMAGE_PATH}/${mediaFile.file_md5}`);
+            const blob = await response.blob();
+            return { file_md5: mediaFile.file_md5, uri: URL.createObjectURL(blob) };
+          } catch {
+            return null;
+          }
+        });
+        const results = await Promise.all(imagePromises);
+        setAuthenticatedImages(
+          results.filter((img): img is { file_md5: string; uri: string } => img !== null),
+        );
+      } else {
+        setAuthenticatedImages(
+          mediaFiles.map((mf) => ({ file_md5: mf.file_md5, uri: `${IMAGE_PATH}/${mf.file_md5}` })),
+        );
+      }
+    };
 
-        fetchImages();
+    fetchImages();
 
-        return () => {
-            if (Platform.OS === 'web') {
-                authenticatedImages.forEach((img) => {
-                    if (img.uri.startsWith('blob:')) URL.revokeObjectURL(img.uri);
-                });
-            }
-        };
-    }, [token]);
+    return () => {
+      if (Platform.OS === 'web') {
+        authenticatedImages.forEach((img) => {
+          if (img.uri.startsWith('blob:')) URL.revokeObjectURL(img.uri);
+        });
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
-    const authHeaders = token && Platform.OS !== 'web' ? {Authorization: `Bearer ${token}`} : undefined;
+  const authHeaders =
+    token && Platform.OS !== 'web' ? { Authorization: `Bearer ${token}` } : undefined;
 
-    return (
-        <View style={[screenStyles.container, {padding: 0, paddingTop: insets.top}]}>
-            <View style={styles.header}>
-                <TouchableOpacity style={screenStyles.backButton} onPress={() => router.back()}>
-                    <MaterialIcons name="arrow-back" size={28} color={Colors.neutral.darkGray} />
-                </TouchableOpacity>
-                {token && (
-                    <PostMenu
-                        postId={params.postId}
-                        token={token}
-                        mediaFiles={mediaFiles}
-                        onEdit={() => {}}
-                        onDelete={() => router.back()}
-                    />
-                )}
-            </View>
+  return (
+    <View style={[screenStyles.container, { padding: 0, paddingTop: insets.top }]}>
+      <View style={styles.header}>
+        <TouchableOpacity style={screenStyles.backButton} onPress={() => router.back()}>
+          <MaterialIcons name="arrow-back" size={28} color={Colors.neutral.darkGray} />
+        </TouchableOpacity>
+        {token && (
+          <PostMenu
+            postId={params.postId}
+            token={token}
+            mediaFiles={mediaFiles}
+            onEdit={() => {}}
+            onDelete={() => router.back()}
+          />
+        )}
+      </View>
 
-            <ScrollView
-                style={screenStyles.scrollView}
-                contentContainerStyle={styles.scrollContent}
-            >
-                {/* Date */}
-                <Text style={styles.dateText}>{formatDate(params.date)}</Text>
+      <ScrollView style={screenStyles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {/* Date */}
+        <Text style={styles.dateText}>{formatDate(params.date)}</Text>
 
-                {/* Children + Description row */}
-                <View style={styles.childrenDescriptionRow}>
-                    {loadingChildren ? (
-                        <ActivityIndicator color={Colors.primary} style={{marginVertical: 12}} />
-                    ) : children.length > 0 ? (
-                        <View style={styles.childrenRow}>
-                            {children.map((child) => (
-                                <View key={child.id} style={styles.childCard}>
-                                    <ProfileAvatar
-                                        size={60}
-                                        editable={false}
-                                        isChild={true}
-                                        childId={child.id}
-                                    />
-                                    <Text style={styles.childName}>{child.full_name}</Text>
-                                    <Text style={styles.childAge}>
-                                        {calculateAgeAtDate(child.birthdate, params.date)}
-                                    </Text>
-                                </View>
-                            ))}
-                        </View>
-                    ) : null}
-
-                    {params.description ? (
-                        <Text style={[screenStyles.text, styles.description]}>{params.description}</Text>
-                    ) : null}
+        {/* Children + Description row */}
+        <View style={styles.childrenDescriptionRow}>
+          {loadingChildren ? (
+            <ActivityIndicator color={Colors.primary} style={{ marginVertical: 12 }} />
+          ) : children.length > 0 ? (
+            <View style={styles.childrenRow}>
+              {children.map((child) => (
+                <View key={child.id} style={styles.childCard}>
+                  <ProfileAvatar size={60} editable={false} isChild={true} childId={child.id} />
+                  <Text style={styles.childName}>{child.full_name}</Text>
+                  <Text style={styles.childAge}>
+                    {calculateAgeAtDate(child.birthdate, params.date)}
+                  </Text>
                 </View>
+              ))}
+            </View>
+          ) : null}
 
-                {/* Images stacked full-width */}
-                {authenticatedImages.map((img) => (
-                    <View key={img.file_md5} style={styles.imageWrapper}>
-                        <AuthenticatedImage
-                            uri={img.uri}
-                            headers={authHeaders}
-                            style={styles.postImage}
-                            contentFit="cover"
-                        />
-                    </View>
-                ))}
-            </ScrollView>
+          {params.description ? (
+            <Text style={[screenStyles.text, styles.description]}>{params.description}</Text>
+          ) : null}
         </View>
-    );
+
+        {/* Images stacked full-width */}
+        {authenticatedImages.map((img) => (
+          <View key={img.file_md5} style={styles.imageWrapper}>
+            <AuthenticatedImage
+              uri={img.uri}
+              headers={authHeaders}
+              style={styles.postImage}
+              contentFit="cover"
+            />
+          </View>
+        ))}
+      </ScrollView>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-    },
-    scrollContent: {
-        padding: 16,
-        paddingBottom: 40,
-    },
-    dateText: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: Colors.secondary,
-        marginBottom: 16,
-    },
-    childrenDescriptionRow: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        alignItems: 'flex-start',
-        gap: 16,
-        marginBottom: 20,
-    },
-    childrenRow: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 16,
-    },
-    childCard: {
-        alignItems: 'center',
-        gap: 4,
-    },
-    childName: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: Colors.neutral.darkGray,
-        marginTop: 4,
-    },
-    childAge: {
-        fontSize: 12,
-        color: Colors.neutral.lightGray,
-    },
-    description: {
-        flex: 1,
-        lineHeight: 24,
-    },
-    imageWrapper: {
-        width: '100%',
-        borderRadius: 12,
-        overflow: 'hidden',
-        marginBottom: 12,
-        aspectRatio: 1,
-    },
-    postImage: {
-        width: '100%',
-        height: '100%',
-    },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 40,
+  },
+  dateText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.secondary,
+    marginBottom: 16,
+  },
+  childrenDescriptionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'flex-start',
+    gap: 16,
+    marginBottom: 20,
+  },
+  childrenRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+  },
+  childCard: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  childName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.neutral.darkGray,
+    marginTop: 4,
+  },
+  childAge: {
+    fontSize: 12,
+    color: Colors.neutral.lightGray,
+  },
+  description: {
+    flex: 1,
+    lineHeight: 24,
+  },
+  imageWrapper: {
+    width: '100%',
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 12,
+    aspectRatio: 1,
+  },
+  postImage: {
+    width: '100%',
+    height: '100%',
+  },
 });

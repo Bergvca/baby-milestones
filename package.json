@@ -8,7 +8,11 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
     "lint": "expo lint",
+    "lint:fix": "expo lint --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "deploy": "gh-pages --nojekyll -d dist",
     "predeploy": "expo export -p web"
   },
@@ -54,7 +58,9 @@
     "@types/react": "~19.1.10",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
+    "eslint-config-prettier": "9.1.0",
     "gh-pages": "^6.3.0",
+    "prettier": "3.3.3",
     "typescript": "~5.9.2"
   },
   "private": true

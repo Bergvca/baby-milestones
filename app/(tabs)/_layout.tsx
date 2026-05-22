@@ -1,107 +1,101 @@
 import { Tabs } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import {Platform, TouchableOpacity, useWindowDimensions} from 'react-native';
+import { Platform, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useEffect } from 'react';
 import { router } from 'expo-router';
 import { Colors } from '@/components/colors';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-
 export default function Layout() {
-    const { user } = useAuth();
-    const { width } = useWindowDimensions();
-    const isSmallScreen = width < 640;
+  const { user } = useAuth();
+  const { width } = useWindowDimensions();
+  const isSmallScreen = width < 640;
 
-    useEffect(() => {
-        if (!user) {
-            router.replace('/login');
-        }
-    }, [user]);
-
+  useEffect(() => {
     if (!user) {
-        return null;
+      router.replace('/login');
     }
+  }, [user]);
 
-    return (
+  if (!user) {
+    return null;
+  }
 
-        <SafeAreaView style={{ flex: 1 }}>
-        <Tabs
-
-
+  return (
+    <SafeAreaView style={{ flex: 1 }}>
+      <Tabs
         screenOptions={{
-            // Material Design styling
-            tabBarStyle: {
-                backgroundColor: Colors.neutral.white,
-                height: Platform.OS === 'ios' ? 88 : 60,
-                paddingBottom: Platform.OS === 'ios' ? 30 : 0,
-                paddingTop: 5,
-                elevation: 8, // Android shadow
-                shadowColor: Colors.neutral.darkGray, // iOS shadow
-                shadowOffset: {
-                    width: 0,
-                    height: 4,
-                },
-                shadowOpacity: 0.1,
-                shadowRadius: 4,
+          // Material Design styling
+          tabBarStyle: {
+            backgroundColor: Colors.neutral.white,
+            height: Platform.OS === 'ios' ? 88 : 60,
+            paddingBottom: Platform.OS === 'ios' ? 30 : 0,
+            paddingTop: 5,
+            elevation: 8, // Android shadow
+            shadowColor: Colors.neutral.darkGray, // iOS shadow
+            shadowOffset: {
+              width: 0,
+              height: 4,
             },
-            tabBarActiveTintColor: Colors.primary, // Material Design primary color
-            tabBarInactiveTintColor: Colors.neutral.lightGray,
-            tabBarLabelStyle: {
-                fontSize: 12,
-                fontWeight: '500',
-                display: isSmallScreen ? 'none' : 'flex',
-            },
-            headerShown: false,
-
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+          },
+          tabBarActiveTintColor: Colors.primary, // Material Design primary color
+          tabBarInactiveTintColor: Colors.neutral.lightGray,
+          tabBarLabelStyle: {
+            fontSize: 12,
+            fontWeight: '500',
+            display: isSmallScreen ? 'none' : 'flex',
+          },
+          headerShown: false,
         }}
-    >
-      {/* Example tab configuration - adjust according to your needs */}
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarLabel: 'Home',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="home" size={size} color={color} />
-          ),
-        }}
-      />
+      >
+        {/* Example tab configuration - adjust according to your needs */}
         <Tabs.Screen
-            name="upload"
-            options={{
-                title: 'Create Milestone',
-                tabBarLabel: 'Create Milestone',
-                tabBarIcon: ({ color, size }) => (
-                    <MaterialCommunityIcons name="upload" size={size} color={color}/>
-                ),
-            }}
+          name="index"
+          options={{
+            title: 'Home',
+            tabBarLabel: 'Home',
+            tabBarIcon: ({ color, size }) => (
+              <MaterialCommunityIcons name="home" size={size} color={color} />
+            ),
+          }}
         />
-      {/* Add other tab screens as needed */}
-      <Tabs.Screen
-        name="qr"
-        options={{
-          title: 'QR',
-          tabBarLabel: 'QR',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="qrcode" size={size} color={color} />
-          ),
-        }}
-      />
+        <Tabs.Screen
+          name="upload"
+          options={{
+            title: 'Create Milestone',
+            tabBarLabel: 'Create Milestone',
+            tabBarIcon: ({ color, size }) => (
+              <MaterialCommunityIcons name="upload" size={size} color={color} />
+            ),
+          }}
+        />
+        {/* Add other tab screens as needed */}
+        <Tabs.Screen
+          name="qr"
+          options={{
+            title: 'QR',
+            tabBarLabel: 'QR',
+            tabBarIcon: ({ color, size }) => (
+              <MaterialCommunityIcons name="qrcode" size={size} color={color} />
+            ),
+          }}
+        />
 
         <Tabs.Screen
-            name="profile"
-            options={{
-                title: 'Profile',
-                tabBarLabel: 'Profile',
-                tabBarIcon: ({ color, size }) => (
-                    <MaterialCommunityIcons name="account-circle" size={size} color={color} />
-                ),
-            }}
+          name="profile"
+          options={{
+            title: 'Profile',
+            tabBarLabel: 'Profile',
+            tabBarIcon: ({ color, size }) => (
+              <MaterialCommunityIcons name="account-circle" size={size} color={color} />
+            ),
+          }}
         />
-      {/* Add more tabs as needed */}
-    </Tabs>
-</SafeAreaView>
-
-);
+        {/* Add more tabs as needed */}
+      </Tabs>
+    </SafeAreaView>
+  );
 }

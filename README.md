@@ -32,11 +32,12 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
 Environment variables are loaded by Expo from `.env` files (SDK 49+). Only
 variables prefixed with `EXPO_PUBLIC_` are exposed to client code.
 
-| Variable                   | Required | Description                                            |
-| -------------------------- | -------- | ------------------------------------------------------ |
-| `EXPO_PUBLIC_API_BASE_URL` | yes      | Base URL of the backend API (no trailing slash).       |
+| Variable                   | Required | Description                                      |
+| -------------------------- | -------- | ------------------------------------------------ |
+| `EXPO_PUBLIC_API_BASE_URL` | yes      | Base URL of the backend API (no trailing slash). |
 
 Files:
+
 - `.env.example` — committed template; copy to `.env` to get started.
 - `.env` — local development values (gitignored).
 - `.env.production` — values used for `expo export -p web` / `npm run predeploy` (gitignored).
@@ -77,7 +78,6 @@ Join our community of developers creating universal apps.
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
 
-
 -- deployment to github pages:
 
 https://docs.expo.dev/guides/publishing-websites/
@@ -94,5 +94,3 @@ https://docs.expo.dev/guides/publishing-websites/
   },
 
 - npm run deploy
-
-

@@ -3,10 +3,10 @@
 - add edit function -- done
 - make edit / post functions smaller on mobile
 - add "milestone" to edit page
-- 
+-
 - make site max x pixels on desktop
 - make cards on frontpage look more beatifull
-- 
+-
 - change profile page
   - add kids
   - add other members
@@ -14,7 +14,7 @@
 
 -- api:
 -- make multiple routes:
-    /post
-    /user
-    /family?
-    /kids
+/post
+/user
+/family?
+/kids
