@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import * as FileSystemLegacy from 'expo-file-system/legacy';
 import * as Crypto from 'expo-crypto';
+import { api } from '@/utils/apiClient';
 
 type Headers = Record<string, string>;
 
@@ -86,8 +87,7 @@ export default function AuthenticatedImage({
       // Web:
       if (Platform.OS === 'web') {
         if (headers && Object.keys(headers).length > 0) {
-          const res = await fetch(uri, { headers });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const res = await api.raw(uri);
           const blob = await res.blob();
           const blobUrl = URL.createObjectURL(blob);
           setSafe(blobUrl);

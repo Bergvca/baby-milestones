@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import { POSTS_PATH } from "@/app/constants/api";
+import { api } from "@/utils/apiClient";
 
 function guessContentType(fileName: string): string {
   const ext = fileName.split('.').pop()?.toLowerCase();
@@ -78,54 +79,22 @@ async function buildPostForm(imageUris: string[] | null | undefined,
 
 
 export async function uploadPostBinary(params: {
-  token: string;
   imageUris: string[];
   text: string;
   date: Date;
   selectedChildrenIds: number[]
 }) {
-  const { token, imageUris, date, text, selectedChildrenIds } = params;
+  const { imageUris, date, text, selectedChildrenIds } = params;
   const form = await buildPostForm(imageUris, text, date, selectedChildrenIds);
-
-  const res = await fetch(`${POSTS_PATH}`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: 'application/json',
-      // Do not set Content-Type; the browser/Polyfill will set multipart boundary
-    },
-    body: form,
-  });
-
-  if (!res.ok) {
-    const err = await res.text().catch(() => '');
-    throw new Error(err || `Upload failed (${res.status})`);
-  }
-
-  // If your API returns JSON:
-  // return await res.json();
+  await api.upload<unknown>(POSTS_PATH, form);
   return true;
 }
 
 
-export async function updatePostById(editingPostId: string | null, token: string | null, text: string, selectedDate: Date, imageUris: string[] | null, childrenIds: number[] | undefined) {
-
-    if (!editingPostId || !token) return;
+export async function updatePostById(editingPostId: string | null, text: string, selectedDate: Date, imageUris: string[] | null, childrenIds: number[] | undefined) {
+    if (!editingPostId) return;
 
     const form = await buildPostForm(imageUris, text, selectedDate, childrenIds, editingPostId);
-
-    const response = await fetch(`${POSTS_PATH}/${editingPostId}`, {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: form,
-    });
-
-    if (!response.ok) {
-      const text = await response.text().catch(() => '');
-      throw new Error(`Update failed (${response.status}): ${text || response.statusText}`);
-    }
-
-  return true;
+    await api.put<unknown>(`${POSTS_PATH}/${editingPostId}`, form);
+    return true;
 }

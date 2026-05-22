@@ -1,6 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import {View, Text, StyleSheet, Platform} from 'react-native';
 import {IMAGE_PATH} from '@/app/constants/api';
+import {api} from '@/utils/apiClient';
 import {Colors} from "@/components/colors";
 import {screenStyles} from "@/components/screenStyles";
 import PostMenu from './PostMenu';
@@ -48,20 +49,9 @@ const Post: React.FC<PostProps> = ({
                 // On web, fetch images with auth headers and convert to blob URLs
                 const imagePromises = mediaFiles.map(async (mediaFile) => {
                     try {
-                        const response = await fetch(`${IMAGE_PATH}/${mediaFile.file_md5}`, {
-                            headers: {
-                                Authorization: `Bearer ${token}`
-                            }
-                        });
-
-                        if (!response.ok) {
-                            console.error(`Failed to fetch image ${mediaFile.file_md5}: ${response.status} ${response.statusText}`);
-                            throw new Error(`Failed to fetch image: ${response.status}`);
-                        }
-
+                        const response = await api.raw(`${IMAGE_PATH}/${mediaFile.file_md5}`);
                         const blob = await response.blob();
                         const blobUrl = URL.createObjectURL(blob);
-
                         return {
                             file_md5: mediaFile.file_md5,
                             uri: blobUrl
