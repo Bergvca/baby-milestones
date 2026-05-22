@@ -10,11 +10,39 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npm install
    ```
 
-2. Start the app
+2. Configure environment variables
+
+   Copy `.env.example` to `.env` and fill in the values for local development:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   For web production builds (`npm run predeploy`), create a `.env.production`
+   with the production values.
+
+3. Start the app
 
    ```bash
    npx expo start
    ```
+
+## Configuration
+
+Environment variables are loaded by Expo from `.env` files (SDK 49+). Only
+variables prefixed with `EXPO_PUBLIC_` are exposed to client code.
+
+| Variable                   | Required | Description                                            |
+| -------------------------- | -------- | ------------------------------------------------------ |
+| `EXPO_PUBLIC_API_BASE_URL` | yes      | Base URL of the backend API (no trailing slash).       |
+
+Files:
+- `.env.example` — committed template; copy to `.env` to get started.
+- `.env` — local development values (gitignored).
+- `.env.production` — values used for `expo export -p web` / `npm run predeploy` (gitignored).
+
+If `EXPO_PUBLIC_API_BASE_URL` is missing, the app throws at startup so the
+misconfiguration is caught immediately.
 
 In the output, you'll find options to open the app in a
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity, Text, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Colors } from './colors';
 import AuthenticatedImage from './AuthenticatedImage';
@@ -12,7 +12,6 @@ interface ImageViewerProps {
 }
 
 export default function ImageViewer({ selectedImages, onRemoveImage, onPickImages, imageHeaders }: ImageViewerProps) {
-    const { width: screenWidth } = useWindowDimensions();
 
     if (selectedImages.length === 0) {
         if (!onPickImages) {
@@ -55,25 +54,16 @@ export default function ImageViewer({ selectedImages, onRemoveImage, onPickImage
         );
     }
 
-    // Multiple images layout - responsive sizing
-    const availableWidth = screenWidth - 40;
-    const gap = 8;
-    const mainImageWidth = Math.min(availableWidth * 0.6, 300);
-    const sideImageWidth = Math.min(availableWidth - mainImageWidth - gap, 200);
-    const sideImageHeight = Math.min(sideImageWidth * 0.73, 146);
-
+    // Multiple images layout - flex-based sizing
     return (
         <View style={styles.centerWrapper}>
-            <View style={[styles.container, { width: availableWidth }]}>
+            <View style={styles.container}>
                 {/* First (main) image on the left */}
                 <View style={styles.mainImageContainer}>
                     <AuthenticatedImage
                         uri={selectedImages[0]}
                         headers={imageHeaders}
-                        style={[styles.mainImage, {
-                            width: mainImageWidth,
-                            height: mainImageWidth
-                        }]}
+                        style={styles.mainImage}
                         contentFit="cover"
                     />
                     {onRemoveImage && (
@@ -88,17 +78,14 @@ export default function ImageViewer({ selectedImages, onRemoveImage, onPickImage
 
                 {/* Right side with smaller images */}
                 {selectedImages.length > 1 && (
-                    <View style={[styles.sideImagesContainer, { gap }]}>
+                    <View style={styles.sideImagesContainer}>
                         {/* Second image */}
                         {selectedImages[1] && (
                             <View style={styles.smallImageContainer}>
                                 <AuthenticatedImage
                                     uri={selectedImages[1]}
                                     headers={imageHeaders}
-                                    style={[styles.smallImage, {
-                                        width: sideImageWidth,
-                                        height: sideImageHeight
-                                    }]}
+                                    style={styles.smallImage}
                                     contentFit="cover"
                                 />
                                 {onRemoveImage && (
@@ -118,10 +105,7 @@ export default function ImageViewer({ selectedImages, onRemoveImage, onPickImage
                                 <AuthenticatedImage
                                     uri={selectedImages[2]}
                                     headers={imageHeaders}
-                                    style={[styles.smallImage, {
-                                        width: sideImageWidth,
-                                        height: sideImageHeight
-                                    }]}
+                                    style={styles.smallImage}
                                     contentFit="cover"
                                 />
 
@@ -161,9 +145,9 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     container: {
+        width: '100%',
         flexDirection: 'row',
         gap: 8,
-        alignItems: 'flex-start',
     },
     singleImageContainer: {
         width: '100%',
@@ -197,18 +181,26 @@ const styles = StyleSheet.create({
         fontWeight: '500',
     },
     mainImageContainer: {
+        flex: 3,
         position: 'relative',
     },
     mainImage: {
+        width: '100%',
+        aspectRatio: 1,
         borderRadius: 8,
     },
     sideImagesContainer: {
+        flex: 2,
         flexDirection: 'column',
+        gap: 8,
     },
     smallImageContainer: {
+        flex: 1,
         position: 'relative',
     },
     smallImage: {
+        width: '100%',
+        height: '100%',
         borderRadius: 8,
     },
     overlay: {

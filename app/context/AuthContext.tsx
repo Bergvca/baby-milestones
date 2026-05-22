@@ -1,5 +1,5 @@
 
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { auth } from '../../firebaseConfig';
 import {
     User,
@@ -21,14 +21,23 @@ type AuthContextType = {
     loading: boolean;
     logout: () => Promise<void>;
     signInWithGoogle: () => Promise<void>;
+    getToken: (forceRefresh?: boolean) => Promise<string | null>;
 };
 
 const AuthContext = createContext<AuthContextType>({
     user: null,
     loading: true,
     logout: async () => {},
-    signInWithGoogle: async () => {}
+    signInWithGoogle: async () => {},
+    getToken: async () => null,
 });
+
+let _getToken: ((force?: boolean) => Promise<string | null>) | null = null;
+export const registerTokenProvider = (fn: ((force?: boolean) => Promise<string | null>) | null) => {
+    _getToken = fn;
+};
+export const getCurrentToken = (force = false): Promise<string | null> =>
+    _getToken ? _getToken(force) : Promise.resolve(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
@@ -99,12 +108,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const signInWithGoogle = async () => {
         try {
+            console.log('Redirect URI:', getRedirectUri());
+            console.log('Request URL:', request?.url);
             await promptAsync();
         } catch (error) {
             console.error('Error with Google sign-in:', error);
             throw error;
         }
     };
+
+    const getToken = useCallback(async (forceRefresh = false): Promise<string | null> => {
+        const u = auth.currentUser;
+        if (!u) return null;
+        return u.getIdToken(forceRefresh);
+    }, []);
+
+    useEffect(() => {
+        registerTokenProvider(getToken);
+        return () => registerTokenProvider(null);
+    }, [getToken]);
 
     const logout = async () => {
         try {
@@ -116,7 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, logout, signInWithGoogle }}>
+        <AuthContext.Provider value={{ user, loading, logout, signInWithGoogle, getToken }}>
             {children}
         </AuthContext.Provider>
     );

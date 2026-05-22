@@ -52,7 +52,11 @@ function calculateAgeAtDate(birthdate: string, postDate: string): string {
     if (years > 0) parts.push(`${years} year${years !== 1 ? 's' : ''}`);
     if (months > 0) parts.push(`${months} month${months !== 1 ? 's' : ''}`);
 
-    return parts.length > 0 ? parts.join(', ') : 'newborn';
+    if (parts.length > 0) return parts.join(', ');
+
+    const diffMs = post.getTime() - birth.getTime();
+    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    return `${days} day${days !== 1 ? 's' : ''}`;
 }
 
 export default function PostDetailScreen() {
@@ -63,7 +67,7 @@ export default function PostDetailScreen() {
         selectedChildrenIds: string;
         mediaFiles: string;
     }>();
-    const {user} = useAuth();
+    const {user, getToken} = useAuth();
     const insets = useSafeAreaInsets();
 
     const [token, setToken] = useState<string | null>(null);
@@ -80,8 +84,8 @@ export default function PostDetailScreen() {
 
     useEffect(() => {
         if (!user) return;
-        user.getIdToken().then(setToken);
-    }, [user]);
+        getToken().then(setToken);
+    }, [user, getToken]);
 
     // Fetch child data
     useEffect(() => {
@@ -166,32 +170,33 @@ export default function PostDetailScreen() {
                 {/* Date */}
                 <Text style={styles.dateText}>{formatDate(params.date)}</Text>
 
-                {/* Children */}
-                {loadingChildren ? (
-                    <ActivityIndicator color={Colors.primary} style={{marginVertical: 12}} />
-                ) : children.length > 0 ? (
-                    <View style={styles.childrenRow}>
-                        {children.map((child) => (
-                            <View key={child.id} style={styles.childCard}>
-                                <ProfileAvatar
-                                    size={60}
-                                    editable={false}
-                                    isChild={true}
-                                    childId={child.id}
-                                />
-                                <Text style={styles.childName}>{child.full_name}</Text>
-                                <Text style={styles.childAge}>
-                                    {calculateAgeAtDate(child.birthdate, params.date)}
-                                </Text>
-                            </View>
-                        ))}
-                    </View>
-                ) : null}
+                {/* Children + Description row */}
+                <View style={styles.childrenDescriptionRow}>
+                    {loadingChildren ? (
+                        <ActivityIndicator color={Colors.primary} style={{marginVertical: 12}} />
+                    ) : children.length > 0 ? (
+                        <View style={styles.childrenRow}>
+                            {children.map((child) => (
+                                <View key={child.id} style={styles.childCard}>
+                                    <ProfileAvatar
+                                        size={60}
+                                        editable={false}
+                                        isChild={true}
+                                        childId={child.id}
+                                    />
+                                    <Text style={styles.childName}>{child.full_name}</Text>
+                                    <Text style={styles.childAge}>
+                                        {calculateAgeAtDate(child.birthdate, params.date)}
+                                    </Text>
+                                </View>
+                            ))}
+                        </View>
+                    ) : null}
 
-                {/* Description */}
-                {params.description ? (
-                    <Text style={[screenStyles.text, styles.description]}>{params.description}</Text>
-                ) : null}
+                    {params.description ? (
+                        <Text style={[screenStyles.text, styles.description]}>{params.description}</Text>
+                    ) : null}
+                </View>
 
                 {/* Images stacked full-width */}
                 {authenticatedImages.map((img) => (
@@ -227,11 +232,17 @@ const styles = StyleSheet.create({
         color: Colors.secondary,
         marginBottom: 16,
     },
+    childrenDescriptionRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        alignItems: 'flex-start',
+        gap: 16,
+        marginBottom: 20,
+    },
     childrenRow: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: 16,
-        marginBottom: 20,
     },
     childCard: {
         alignItems: 'center',
@@ -248,8 +259,8 @@ const styles = StyleSheet.create({
         color: Colors.neutral.lightGray,
     },
     description: {
+        flex: 1,
         lineHeight: 24,
-        marginBottom: 20,
     },
     imageWrapper: {
         width: '100%',
